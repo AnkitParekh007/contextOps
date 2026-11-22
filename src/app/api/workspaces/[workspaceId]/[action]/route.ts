@@ -90,12 +90,22 @@ export async function GET(request:NextRequest,{params}:Context){
       workspaceId,organizationId:org},select:{id:true,status:true,filename:true,total:true,processed:true,
         rejected:true,issues:true,createdAt:true,completedAt:true},orderBy:{createdAt:"desc"},take:20})});
     if(action==="analysis"){
-      const [classifications,traces]=await Promise.all([
+      const [classifications,traces,classificationSamples]=await Promise.all([
         db.taskClassification.groupBy({by:["category","risk","suitability"],where:{workspaceId,organizationId:org},_count:{_all:true}}),
         db.executionTrace.findMany({where:{workspaceId,organizationId:org},select:{
-          taskType:true,modelName:true,inputTokens:true,outputTokens:true,latencyMs:true,status:true},take:MAX_TRACES}),
+          taskType:true,modelName:true,inputTokens:true,outputTokens:true,latencyMs:true,
+          status:true,promptTemplate:true,humanLabel:true,expectedOutput:true},take:MAX_TRACES}),
+        db.taskClassification.findMany({where:{workspaceId,organizationId:org},
+          select:{traceId:true,category:true,confidence:true,risk:true,suitability:true,
+            reason:true,evaluationApproach:true},take:50,orderBy:{createdAt:"asc"}}),
       ]);
-      return json({summary:datasetSummary(traces),categories:classifications.map(c=>({
+      const patterns=Object.entries(traces.reduce<Record<string,number>>((acc,t)=>{
+        const key=(t.promptTemplate??t.taskType).slice(0,120);
+        acc[key]=(acc[key]??0)+1;return acc;},{}))
+        .sort((a,b)=>b[1]-a[1]).slice(0,12).map(([name,count])=>({name,count}));
+      const labeledCount=traces.filter(t=>t.humanLabel||t.expectedOutput).length;
+      return json({summary:{...datasetSummary(traces),labeledCount},patterns,
+        samples:classificationSamples,categories:classifications.map(c=>({
         category:c.category,risk:c.risk,suitability:c.suitability,count:c._count._all})),
         modelDistribution:Object.entries(traces.reduce<Record<string,number>>((acc,t)=>{
           acc[t.modelName]=(acc[t.modelName]??0)+1;return acc;},{})).map(([name,count])=>({name,count}))});

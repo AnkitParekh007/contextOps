@@ -210,6 +210,12 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
       <Table headers={["Task classification","Risk","Routing suitability","Traces"]} rows={items("categories").map(c=>[
         String(c.category),String(c.risk),String(c.suitability),num(c.count)])}/>
       <Notice>“Eligible” means suitable for evaluation, not approved for cheap model routing. Quality must pass a representative labeled benchmark first.</Notice>
+      {section==="analysis"&&<><h2 className="text-lg font-bold">Top repeated prompt patterns</h2>
+        <Table headers={["Sanitized template / task pattern","Executions"]} rows={items("patterns").map(p=>[
+          String(p.name),num(p.count)])}/></>}
+      <h2 className="text-lg font-bold">Classification decisions and rationale</h2>
+      <Table headers={["Category","Heuristic confidence","Risk","Suitability","Reason"]} rows={items("samples").map(c=>[
+        String(c.category),pct(c.confidence),String(c.risk),String(c.suitability),String(c.reason)])}/>
       {section==="analysis"&&<Table headers={["Model","Observed tasks"]} rows={items("modelDistribution").map(m=>[
         String(m.name),num(m.count)])}/>}
     </>}
