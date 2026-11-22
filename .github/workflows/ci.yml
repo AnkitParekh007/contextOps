@@ -80,6 +80,7 @@ jobs:
           curl -fsS http://localhost:3000/api/ready || (cat /tmp/contextops-worker.log && exit 1)
           node scripts/hosted-acceptance.mjs || (cat /tmp/contextops-app.log && cat /tmp/contextops-worker.log && exit 1)
           node scripts/pilot-smoke.mjs || (cat /tmp/contextops-app.log && cat /tmp/contextops-worker.log && exit 1)
+          node scripts/benchmark-governance-smoke.mjs || (cat /tmp/contextops-app.log && cat /tmp/contextops-worker.log && exit 1)
       - name: Retention cascade and identity cleanup smoke
         run: npx tsx scripts/retention-smoke.ts
       - name: PostgreSQL synthetic backup and isolated restore drill
