@@ -18,9 +18,15 @@ export const evaluationRequestSchema=z.object({
 export async function evaluate(workspace:{id:string;organizationId:string;modelName:string},actorId:string,
   params:z.infer<typeof evaluationRequestSchema>){
   if(params.provider!=="MOCK"&&!params.consentExternal)throw Error("Consent required for external provider calls");
+  const thresholds=await db.qualityThreshold.findMany({where:{
+    organizationId:workspace.organizationId,workspaceId:workspace.id,
+  }});
+  const enforcedQuality=Math.max(params.minimumQuality,
+    ...thresholds.map(t=>t.minimumQuality));
+  const cappedSamples=params.provider==="MOCK"?params.maximumSamples:Math.min(params.maximumSamples,10);
   const labels=await db.taskClassification.findMany({where:{workspaceId:workspace.id,organizationId:workspace.organizationId,
     suitability:"ELIGIBLE",category:{in:["ROUTINE_CLASSIFICATION","STRUCTURED_EXTRACTION"]}},
-    take:params.maximumSamples,orderBy:{createdAt:"asc"}});
+    take:cappedSamples,orderBy:{createdAt:"asc"}});
   if(labels.length<5)throw Error("Need at least 5 labeled, eligible traces. Run analysis first.");
   const candidates=await db.executionTrace.findMany({where:{id:{in:labels.map(l=>l.traceId)},workspaceId:workspace.id}});
   const byId=new Map(candidates.map(t=>[t.id,t]));
@@ -63,13 +69,24 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
     (trace.inputTokens*params.baselineInputPrice+trace.outputTokens*params.baselineOutputPrice)/1000000,0);
   const details={
     labelCount:allowed.length,baselineAccuracy:baselineCorrect/allowed.length,candidateMacroF1:macroF1(scored),
-    minimumQuality:params.minimumQuality,baselineCost,candidateCost:totalCost,
+    minimumQuality:enforcedQuality,baselineCost,candidateCost:totalCost,
     candidateInputPrice:params.candidateInputPrice,candidateOutputPrice:params.candidateOutputPrice,
     baselineInputPrice:params.baselineInputPrice,baselineOutputPrice:params.baselineOutputPrice,
     fallbackRate:1-quality,manualReviewRequired:false,provider:params.provider,
-    canRecommend:quality>=params.minimumQuality&&errorRate<=0.05&&avgLatency<=10000&&totalCost<baselineCost&&baselineCost>0,
+    canRecommend:quality>=enforcedQuality&&errorRate<=0.05&&avgLatency<=10000&&totalCost<baselineCost&&baselineCost>0,
     source:"labeled_test_set",externalConsent:params.consentExternal,
   };
+  await db.evaluationDataset.create({data:{organizationId:workspace.organizationId,workspaceId:workspace.id,
+    name:"Labeled pilot benchmark",taskType:"ROUTINE_CLASSIFICATION_OR_EXTRACTION",
+    provenance:"customer_supplied_or_synthetic_labels",count:allowed.length}});
+  await db.costSnapshot.createMany({data:[
+    {organizationId:workspace.organizationId,workspaceId:workspace.id,provider:"BASELINE",
+      model:workspace.modelName,priceInputPerMillion:params.baselineInputPrice,
+      priceOutputPerMillion:params.baselineOutputPrice},
+    {organizationId:workspace.organizationId,workspaceId:workspace.id,provider:params.provider,
+      model:params.model,priceInputPerMillion:params.candidateInputPrice,
+      priceOutputPerMillion:params.candidateOutputPrice},
+  ]});
   await db.evaluationRun.update({where:{id:run.id},data:{
     status:"COMPLETED",completedAt:new Date(),qualityScore:quality,errorRate,
     averageLatencyMs:avgLatency,estimatedCost:totalCost,details,

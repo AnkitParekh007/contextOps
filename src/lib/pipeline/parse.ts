@@ -107,3 +107,21 @@ export function cleanRows(raw:unknown[]):{rows:CleanTrace[];issues:string[]}{
   }
   return {rows,issues:issues.slice(0,200)};
 }
+
+export const canonicalColumns=[
+  "external_trace_id","timestamp","task_type","input_text","prompt_template",
+  "model_provider","model_name","input_tokens","output_tokens","latency_ms",
+  "status","error_message","output_text","expected_output","human_label",
+  "quality_score","business_context_refs","metadata",
+] as const;
+export function mapColumns(raw:unknown[],mapping:Record<string,string>):unknown[]{
+  const allowed=new Set<string>(canonicalColumns);
+  if(Object.entries(mapping).length>30||Object.values(mapping).some(v=>!allowed.has(v)))
+    throw Error("Invalid column mapping");
+  return raw.map(item=>{
+    if(!item||typeof item!=="object"||Array.isArray(item))return item;
+    return Object.fromEntries(Object.entries(item).map(([key,value])=>[
+      mapping[normalize(key)]??key,value,
+    ]));
+  });
+}

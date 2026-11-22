@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { workspaceAccess } from "@/lib/tenant";
 import { apiError, handleApiError } from "@/lib/http";
 import { originAllowed, enforceRateLimit } from "@/lib/security";
-import { cleanRows, parseRows, MAX_UPLOAD_BYTES, MAX_TRACES } from "@/lib/pipeline/parse";
+import { cleanRows, parseRows, mapColumns, MAX_UPLOAD_BYTES, MAX_TRACES } from "@/lib/pipeline/parse";
 import { demoTraces } from "@/lib/pipeline/demo";
 import { classify } from "@/lib/pipeline/classify";
 import { calculateSavings, costInputSchema } from "@/lib/pipeline/cost";
@@ -118,15 +118,26 @@ export async function POST(request:NextRequest,{params}:Context){
   try{
     if(!await enforceRateLimit("workspace-"+action,user.id,action==="imports"?30:120))
       return apiError("Rate limit exceeded",429);
-    if(action==="imports"){
+    if(action==="imports"||action==="preview"){
       const form=await request.formData();
       const file=form.get("file");
       if(!(file instanceof File))return apiError("Upload CSV, JSONL or JSON",422);
       if(file.size>MAX_UPLOAD_BYTES)return apiError("File exceeds 16 MB",413);
-      if(form.get("authorized")!=="true"||form.get("retentionAcknowledged")!=="true")
-        return apiError("You must confirm upload authorization and redacted retention",403);
-      const parsed=parseRows(await file.text(),file.name);
+      if(form.get("authorized")!=="true")return apiError("Upload authorization required",403);
+      const original=parseRows(await file.text(),file.name);
+      const mappingInput=String(form.get("mapping")??"{}");
+      let mapping:Record<string,string>={};
+      try{mapping=z.record(z.string()).parse(JSON.parse(mappingInput));}
+      catch{return apiError("Invalid column mapping",422);}
+      const parsed=mapColumns(original,mapping);
       const {rows,issues}=cleanRows(parsed);
+      if(action==="preview"){
+        return json({columns:original.length&&original[0]&&typeof original[0]==="object"?
+          Object.keys(original[0] as Record<string,unknown>):[],
+          redactedPreview:rows.slice(0,3),total:original.length,valid:rows.length,issues});
+      }
+      if(form.get("retentionAcknowledged")!=="true")
+        return apiError("Redacted-only retention acknowledgement required",403);
       if(!rows.length)return apiError("No valid traces found",422);
       const job=await db.importJob.create({data:{
         organizationId:org,workspaceId,filename:file.name.slice(0,180),
@@ -306,7 +317,7 @@ export async function POST(request:NextRequest,{params}:Context){
     // Expected domain/parse errors are safe to display; provider HTTP errors never echo upstream payload.
     if(error instanceof SyntaxError)return apiError("Invalid uploaded data",422);
     const msg=message(error);
-    if(/^(Need at least|Upload traces|No traces|Only quality|Run an evaluation|Run shadow|Consent required|External provider|Unsupported provider|Sensitive trace|CSV needs|Invalid JSONL|Use a |Maximum |Unterminated CSV|Malformed CSV|JSON upload)/.test(msg))
+    if(/^(Need at least|Upload traces|No traces|Only quality|Run an evaluation|Run shadow|Consent required|External provider|Unsupported provider|Sensitive trace|CSV needs|Invalid JSONL|Use a |Maximum |Unterminated CSV|Malformed CSV|JSON upload|Invalid column mapping)/.test(msg))
       return apiError(msg,422);
     return handleApiError(error);
   }
