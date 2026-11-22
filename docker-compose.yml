@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: contextops
+      POSTGRES_USER: contextops
+      POSTGRES_PASSWORD: contextops_local
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U contextops -d contextops"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD","redis-cli","ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://contextops:contextops_local@db:5432/contextops?schema=public
+      REDIS_URL: redis://redis:6379
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      NODE_ENV: development
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    command: sh -c "npx prisma migrate deploy && npm run dev"
+volumes:
+  postgres_data:

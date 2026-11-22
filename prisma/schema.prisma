@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  ANALYST
+  VIEWER
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique @db.VarChar(320)
+  name         String       @db.VarChar(100)
+  passwordHash String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  memberships  Membership[]
+  auditLogs    AuditLog[]
+}
+
+model Organization {
+  id          String       @id @default(cuid())
+  name        String       @db.VarChar(120)
+  slug        String       @unique @db.VarChar(160)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  memberships Membership[]
+  workspaces  Workspace[]
+  auditLogs   AuditLog[]
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  role           MemberRole   @default(VIEWER)
+  createdAt      DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId, role])
+}
+
+model Workspace {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String       @db.VarChar(120)
+  slug           String       @db.VarChar(160)
+  useCase        String       @db.VarChar(80)
+  provider       String       @db.VarChar(60)
+  modelName      String       @db.VarChar(120)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  actorId        String?
+  action         String       @db.VarChar(100)
+  subjectType    String       @db.VarChar(80)
+  subjectId      String
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor          User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+}
