@@ -21,6 +21,13 @@ describe("trace parsing",()=>{
     expect(r).toHaveLength(1);const clean=cleanRows(r);
     expect(clean.issues).toHaveLength(0);expect(clean.rows[0].inputText).toBe("Hello,\nworld");
   });
+  it("does not leak unsafe external trace identifiers and generates stable IDs",()=>{
+    const first=cleanRows([{task_type:"support",external_trace_id:"patient@example.com",input_text:"Hello"}]);
+    expect(first.rows[0].externalTraceId).not.toContain("patient@example.com");
+    const a=cleanRows([{task_type:"support",input_text:"missing id"}]);
+    const b=cleanRows([{task_type:"support",input_text:"missing id"}]);
+    expect(a.rows[0].externalTraceId).toBe(b.rows[0].externalTraceId);
+  });
   it("reports invalid records without storing raw content",()=>{
     const r=cleanRows([{task_type:"triage",input_tokens:-5,input_text:"alice@example.com"}]);
     expect(r.rows).toHaveLength(0);expect(r.issues[0]).not.toContain("alice@example.com");

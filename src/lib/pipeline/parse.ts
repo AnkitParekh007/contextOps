@@ -93,7 +93,12 @@ export function cleanRows(raw:unknown[]):{rows:CleanTrace[];issues:string[]}{
     if(!Number.isFinite(timestamp.getTime())){issues.push("Row "+(i+1)+": invalid timestamp");continue;}
     const redact=(v:unknown)=>v===undefined?null:redactText(String(v).slice(0,40000));
     const inputText=redact(t.input_text);
-    const rawId=String(t.external_trace_id??createHash("sha256").update(JSON.stringify([timestamp.toISOString(),t.task_type,t.input_text,t.output_text])).digest("hex"));
+    // Hash unsafe upstream IDs (emails, URLs, secret-like values). Missing IDs must be
+    // stable across repeated uploads even when the source omitted a timestamp.
+    const sourceId=String(t.external_trace_id??createHash("sha256")
+      .update(JSON.stringify([t.timestamp??null,t.task_type,t.input_text,t.output_text])).digest("hex"));
+    const rawId=/^[A-Za-z0-9_-]{1,120}$/.test(sourceId)?sourceId:
+      "opaque-"+createHash("sha256").update(sourceId).digest("hex").slice(0,48);
     rows.push({
       externalTraceId:rawId.slice(0,200),timestamp:timestamp.toISOString(),
       taskType:redactText(t.task_type),inputText,
