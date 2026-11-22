@@ -7,6 +7,7 @@ if(process.env.CI!=="true"||process.env.APP_URL!=="http://localhost:3000")
   throw Error("This destructive recovery test runs only against synthetic ephemeral CI");
 const db=new PrismaClient();
 const nonce=randomUUID().slice(0,10);
+async function main(){
 try{
   const user=await db.user.create({data:{
     email:"retention-"+nonce+"@example.test",name:"Retention Fixture",
@@ -38,3 +39,5 @@ try{
   assert.equal(second.workspaces,0,"Retention cleanup must be idempotent");
   console.log("Phase 11 retention smoke PASS: explicit expiry cascades domain data, retains minimal audit evidence, and cleans expired sessions");
 }finally{await db.$disconnect();}
+}
+main().catch(error=>{console.error(error);process.exitCode=1;});

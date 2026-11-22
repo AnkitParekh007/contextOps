@@ -14,7 +14,7 @@ This phase follows the Phase 10 public synthetic demo and tightens the **separat
 | Baseline HTTP defense headers | Implemented | `nosniff`, `X-Frame-Options: DENY`, strict-origin-when-cross-origin referrer policy and restricted permissions |
 | Synthetic database recovery drill | Added to CI | `pg_dump -Fc` → isolated scratch database `pg_restore` → schema and account/session count verification |
 | Managed DB backups/restore on Railway | **Pending** | Requires actual project, retention policy, separate encrypted backup storage, restore evidence |
-| Email verification / MFA / enterprise SSO | **Pending** | Not implemented; no enterprise-security certification claims |
+| Email verification / MFA / enterprise SSO | **Partial** | App email verification/reset and optional TOTP MFA implemented; live email delivery, mandatory MFA/enterprise SSO and independent assurance remain open |
 | DLP / regulated-data approval | **Pending** | Best-effort redaction is not DLP; real customer intake requires separate approval |
 
 ### Session lifecycle and upgrade impact

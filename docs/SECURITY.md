@@ -19,8 +19,8 @@
 ## Important gaps before using sensitive or regulated records
 
 1. **Automated redaction is not DLP.** Unrecognized customer IDs, names and uncommon secrets can still survive. Pilot with synthetic or independently approved sanitized records.
-2. **Identity and tenancy:** email verification, account recovery, MFA/enterprise SSO and independent cross-tenant penetration testing are not yet delivered. Session revocation is implemented, but device/session management is still pilot-grade.
-3. **Retention:** workspace deletion is available, but configurable automated retention schedules, backups deletion, access logs and provider retention agreements need implementation.
+2. **Identity and tenancy:** email verification and recovery code are implemented in the authenticated app but require a verified transactional mail provider; optional authenticator MFA is implemented. Mandatory MFA/enterprise SSO, production email delivery tests and independent cross-tenant penetration testing remain open. Server-side session revocation is implemented, with pilot-grade device management.
+3. **Retention:** explicit OWNER/ADMIN whole-workspace expiry and deletion is implemented, but granular trace retention, automatic backup/export/provider deletion, access logs and retention agreements remain open.
 4. **Secrets:** no customer keys are stored today. If production connectors are added, use a proven managed secret vault with rotation and envelope encryption.
 5. **Security operations:** add production monitoring, abuse alerts, audit integrity controls, vulnerability patching, external review and incident response.
 6. **Contracts:** require DPA/data residency and written customer consent; verify provider restrictions before any distillation, fine-tuning or use of third-party model output for training.

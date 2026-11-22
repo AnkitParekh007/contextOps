@@ -45,7 +45,7 @@ No numerical reduction or guaranteed equivalence should be marketed without a ve
 
 ## Phase 11 — Pilot Security and Recovery
 
-**First engineering increment implemented, pending CI/merge acceptance:**
+**First engineering increment implemented and merged; identity/lifecycle completion in PR #8 pending CI/merge acceptance:**
 - Revocable signed browser sessions persisted in Postgres, with single logout and password-confirmed global revocation.
 - Account security screen and replayed-cookie integration tests.
 - Security response headers and a synthetic PostgreSQL dump/isolated-restore drill in CI.
