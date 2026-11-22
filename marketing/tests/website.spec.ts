@@ -116,7 +116,8 @@ test("demo evaluates local MOCK and denies an overly strict quality gate",async(
   await expect(page.getByText("96.7%")).toBeVisible();
   await page.getByRole("navigation",{name:"Demo stages"}).getByRole("button",{name:/Approve/}).click();
   await expect(page.getByText("Approved for simulation")).toBeVisible();
-  await page.getByRole("slider",{name:/Minimum candidate accuracy/}).fill("0.99");
+  await page.getByRole("slider",{name:/Minimum candidate accuracy/}).focus();
+  await page.getByRole("slider",{name:/Minimum candidate accuracy/}).press("End");
   await expect(page.getByText("Quality gate declined")).toBeVisible();
   await page.getByRole("navigation",{name:"Demo stages"}).getByRole("button",{name:/Simulate/}).click();
   await expect(page.getByText("500",{exact:true})).toBeVisible();
