@@ -1,5 +1,16 @@
 # ContextOps AI
 
+## Public marketing website
+
+The public-facing **React + Vite** marketing site lives in [`marketing/`](marketing/) and is designed for GitHub Pages:
+
+**https://ankitparekh007.github.io/contextOps/**
+
+It covers the nine implemented controlled-pilot capabilities, supported use cases, a six-step workflow, privacy limitations, and an interactive **scenario** calculator. The static site is deployed through [the GitHub Pages workflow](.github/workflows/marketing-pages.yml) on updates to `main`. The Next.js application and APIs remain separate; GitHub Pages cannot host server-side login, PostgreSQL, or model evaluations.
+
+For local marketing development, run `cd marketing && npm install && npm run dev`. See [marketing/README.md](marketing/README.md). If GitHub Pages is not enabled, choose **Settings → Pages → Source: GitHub Actions**, and rerun the workflow.
+
+
 > **Measure AI cost, prove model quality, then optimize safely.**
 
 ContextOps AI is a pilot-oriented B2B application for analyzing an existing AI workflow and testing whether some repeatable tasks could be handled by a cheaper model. It is not a replacement for Claude, GPT, or Gemini. It is a quality-first assessment platform with **simulation-only** routing.
