@@ -26,6 +26,8 @@ CREATE TABLE "ImportJob" (
   "total" INTEGER NOT NULL DEFAULT 0,
   "processed" INTEGER NOT NULL DEFAULT 0,
   "rejected" INTEGER NOT NULL DEFAULT 0,
+  "attempts" INTEGER NOT NULL DEFAULT 0,
+  "nextAttemptAt" TIMESTAMP(3),
   "issues" JSONB,
   "startedAt" TIMESTAMP(3),
   "completedAt" TIMESTAMP(3),

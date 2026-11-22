@@ -5,11 +5,12 @@ process.on("SIGINT",()=>{running=false;});
 process.on("SIGTERM",()=>{running=false;});
 async function workOne(){
   const claim=await db.importJob.findFirst({where:{
-    OR:[{status:"QUEUED"},{status:"PROCESSING",startedAt:{lt:new Date(Date.now()-10*60*1000)}}],
+    OR:[{status:"QUEUED"},{status:"RETRY",nextAttemptAt:{lte:new Date()}},
+      {status:"PROCESSING",startedAt:{lt:new Date(Date.now()-10*60*1000)}}],
   },orderBy:{createdAt:"asc"}});
   if(!claim)return false;
   const update=await db.importJob.updateMany({where:{id:claim.id,status:claim.status},
-    data:{status:"PROCESSING",startedAt:new Date()}});
+    data:{status:"PROCESSING",startedAt:new Date(),attempts:{increment:1}}});
   if(!update.count)return true;
   try{
     const rows=Array.isArray(claim.payload)?claim.payload as Array<Record<string,unknown>>:[];
@@ -41,9 +42,14 @@ async function workOne(){
       metadata:{accepted:inserted,duplicates:rows.length-inserted}}});
   }catch(error){
     console.error("Import job failure",claim.id,error instanceof Error?error.message:"unknown");
+    const attempts=claim.attempts+1;
+    const retry=attempts<3;
     await db.importJob.update({where:{id:claim.id},data:{
-      status:"FAILED",issues:[...((Array.isArray(claim.issues)?claim.issues:[]) as string[]),
-        "Processing failed; re-submit after reviewing the input"],completedAt:new Date(),payload:[],
+      status:retry?"RETRY":"FAILED",
+      nextAttemptAt:retry?new Date(Date.now()+Math.pow(2,attempts)*1500):null,
+      issues:[...((Array.isArray(claim.issues)?claim.issues:[]) as string[]),
+        retry?"Retry scheduled following processing error":"Processing failed after retry attempts"],
+      ...(retry?{}:{completedAt:new Date(),payload:[]}),
     }});
   }
   return true;
