@@ -18,6 +18,7 @@ const docs=githubUrl+"/blob/main/README.md";
 const safeDocs=githubUrl+"/blob/main/docs/SECURITY.md";
 const accepted=githubUrl+"/blob/main/docs/ACCEPTANCE.md";
 const start=githubUrl+"#start-locally";
+const interactiveDemo="/contextOps/demo/";
 const icons={
   layers:Layers3,database:Database,brain:BrainCircuit,calculator:Calculator,
   flask:FlaskConical,shield:ShieldCheck,route:Route,chart:BarChart3,lock:LockKeyhole
@@ -79,13 +80,14 @@ function Header(){
         <div className="header-cta">
           <ThemeControl/>
           <a className="header-gh" href={githubUrl} target="_blank" rel="noreferrer"><Github size={17}/><span>GitHub</span></a>
-          <a className="btn btn-dark btn-sm" href={start} target="_blank" rel="noreferrer">Get started <ArrowRight size={16}/></a>
+          <a className="btn btn-dark btn-sm" href={interactiveDemo}>Try demo <ArrowRight size={16}/></a>
           <button type="button" className="menu-toggle" aria-label={open?"Close navigation":"Open navigation"} aria-controls="mobile-nav" aria-expanded={open} onClick={()=>setOpen(!open)}>{open?<X size={24}/>:<Menu size={24}/>}</button>
         </div>
       </div>
       {open&&<nav id="mobile-nav" className="mobile-nav" aria-label="Mobile navigation">
         {nav.map(item=><a className={active===item.id?"active":""} href={"#"+item.id} key={item.id} onClick={()=>setOpen(false)}>{item.label}<ChevronRight size={18}/></a>)}
         <a href="#calculator" onClick={()=>setOpen(false)}>Cost calculator <ChevronRight size={18}/></a>
+        <a href={interactiveDemo} onClick={()=>setOpen(false)}>Try product demo <ArrowRight size={17}/></a>
         <a href={githubUrl} target="_blank" rel="noreferrer" onClick={()=>setOpen(false)}>View source <ExternalLink size={16}/></a>
       </nav>}
       <span aria-hidden="true" className="header-scroll-track"><span className="header-scroll-progress" style={{transform:"scaleX("+progress+")"}}/></span>
@@ -144,7 +146,7 @@ function Hero(){
     <div className="hero-copy"><div className="hero-eyebrow"><Sparkles size={15}/> INTELLIGENCE THAT EARNS ITS COST <span className="tiny-arrow">↗</span></div>
       <h1>Stop paying <em>premium prices</em> for routine AI work.</h1>
       <p className="hero-lead">Your AI stack is powerful. Not every task needs all of it. ContextOps helps you find where lower-cost models might work—<strong>without gambling on quality.</strong></p>
-      <div className="hero-actions"><a className="btn btn-primary" href={start} target="_blank" rel="noreferrer">Explore the open-source MVP <ArrowRight size={18}/></a><a className="btn btn-ghost" href="#workflow">See how it works <ArrowDown size={17}/></a></div>
+      <div className="hero-actions"><a className="btn btn-primary" href={interactiveDemo}>Try interactive demo <ArrowRight size={18}/></a><a className="btn btn-ghost" href={start} target="_blank" rel="noreferrer">Explore the open-source MVP <ArrowUpRight size={17}/></a></div>
       <div className="hero-notes"><span><CheckCircle2 size={17}/> Real evaluation workflows</span><span><CheckCircle2 size={17}/> Offline routing simulation</span></div>
     </div>
     <HeroBoard/>
@@ -160,6 +162,26 @@ function Why(){
       <a className="text-link" href="#capabilities">See what the platform covers <ArrowRight size={18}/></a></div></div>
     <div className="container principle-grid"><div className="principle"><div><Database size={24}/></div><h3>Know the workload</h3><p>Find where tokens and repeated patterns accumulate.</p></div><div className="principle"><div><ShieldCheck size={24}/></div><h3>Protect the outcome</h3><p>Use quality thresholds and human oversight—not wishful thinking.</p></div><div className="principle"><div><BarChart3 size={24}/></div><h3>Prove the economics</h3><p>Account for fallbacks, retries, fees, and successful tasks.</p></div></div>
   </section>;
+}
+function DemoTeaser(){
+  return <section className="demo-teaser-section" aria-labelledby="demo-teaser-title"><div className="container">
+    <div className="demo-teaser"><div className="demo-teaser-copy">
+      <Eyebrow>EXPLORE THE PRODUCT</Eyebrow>
+      <h2 id="demo-teaser-title">From 500 synthetic traces to a <em>downloadable assessment.</em></h2>
+      <p>Experience the entire quality-first workflow in your browser. Inspect labels, benchmark MOCK predictions, see policy gates respond, and export a simulation-only report. No sign-up, API keys or customer records.</p>
+      <div className="demo-teaser-actions">
+        <a href={interactiveDemo} className="btn btn-primary">Launch guided demo <ArrowRight size={18}/></a>
+        <a href={interactiveDemo+"#report"} className="btn btn-ghost">Preview sample report <FileText size={17}/></a>
+      </div>
+      <span className="demo-teaser-foot"><ShieldCheck size={16}/> Fixed synthetic dataset · No production routing · Zero verified savings claims</span>
+    </div>
+    <div className="demo-teaser-terminal" aria-hidden="true"><div className="demo-teaser-chrome"><span/><span/><span/><b>DEMO / WORKFLOW</b></div>
+      <div className="demo-teaser-line"><span>01</span><CheckCircle2 size={15}/><strong>Loaded</strong><em>500 sample traces</em></div>
+      <div className="demo-teaser-line"><span>02</span><CheckCircle2 size={15}/><strong>Analyzed</strong><em>6 support categories</em></div>
+      <div className="demo-teaser-line"><span>03</span><FlaskConical size={15}/><strong>Benchmarked</strong><em>local MOCK provider</em></div>
+      <div className="demo-teaser-line"><span>04</span><GitBranch size={15}/><strong>Simulated</strong><em>quality-gated routing</em></div>
+      <div className="demo-teaser-footer"><FileDown size={17}/> Assessment.md <span>SIMULATED ONLY</span></div>
+    </div></div></div></section>;
 }
 function Capabilities(){
   return <section className="features-section section-padding" id="capabilities"><div className="container">
@@ -257,7 +279,7 @@ function FAQ(){
 function BottomCTA(){
   return <section className="bottom-section"><div className="container"><div className="bottom-cta"><div className="cta-sun"/><div className="cta-orbit"/><div className="cta-content"><Eyebrow light>MEASURE BEFORE YOU MIGRATE</Eyebrow>
     <h2>Make every model<br/><em>earn its place.</em></h2><p>Start with synthetic traces. Find candidate tasks. Benchmark the outcomes. Share an evidence-backed assessment.</p>
-    <div className="bottom-actions"><a href={start} target="_blank" rel="noreferrer" className="btn btn-primary">Run the pilot locally <ArrowRight size={19}/></a><a className="btn btn-outline-light" href={githubUrl} target="_blank" rel="noreferrer">View GitHub <Github size={18}/></a></div>
+    <div className="bottom-actions"><a href={interactiveDemo} className="btn btn-primary">Try interactive demo <ArrowRight size={19}/></a><a className="btn btn-outline-light" href={start} target="_blank" rel="noreferrer">Run locally <Github size={18}/></a></div>
     <span className="cta-small">Open source · No production traffic changes · No guaranteed savings</span>
   </div></div></div></section>;
 }
@@ -273,5 +295,5 @@ function Footer(){
 }
 export default function App(){
   useReveal();
-  return <div className="site"><a href="#main" className="skip-link">Skip to content</a><Header/><main id="main"><Hero/><Why/><RoutingStream/><Capabilities/><Journey/><UseCases/><CalculatorSection/><Trust/><FAQ/><BottomCTA/></main><Footer/></div>;
+  return <div className="site"><a href="#main" className="skip-link">Skip to content</a><Header/><main id="main"><Hero/><Why/><DemoTeaser/><RoutingStream/><Capabilities/><Journey/><UseCases/><CalculatorSection/><Trust/><FAQ/><BottomCTA/></main><Footer/></div>;
 }

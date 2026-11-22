@@ -59,7 +59,7 @@ function Field({label,value,min,max,step,onChange,format}:{label:string;value:nu
   </label>;
 }
 function DemoApp(){
-  const [active,setActive]=useState(0);
+  const [active,setActive]=useState(()=>typeof window!=="undefined"&&window.location.hash==="#report"?5:0);
   const [settings,setSettings]=useState<DemoSettings>(defaultSettings);
   const result=useMemo(()=>assess(settings),[settings]);
   const change=(key:keyof DemoSettings)=>(value:number)=>setSettings(previous=>({...previous,[key]:value}));

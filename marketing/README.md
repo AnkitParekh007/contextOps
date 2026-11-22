@@ -53,3 +53,16 @@ The GitHub Pages workflow runs these tests before uploading or publishing.
 ## Design system
 
 The marketing site now uses a cobalt, cyan and ice-blue palette informed by Outcrowd's SQL virtualization reference, with original ContextOps components and motion graphics. See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for the color tokens, accessible themes, kinetic routing diagram and reduced-motion behavior.
+
+## Phase 10 browser-only synthetic walkthrough
+
+The built site includes a real second page at `/contextOps/demo/`, with six guided stages and a downloadable local Markdown report. This is **not** the authenticated Next.js application; the static demo makes no API calls and stores no traces or credentials.
+
+```bash
+cd marketing
+npm install
+npm run build
+npm run test:e2e
+```
+
+The marketing pipeline verifies both HTML entrypoints, runs browser flow tests and checks the report download and quality-gate failure path.
