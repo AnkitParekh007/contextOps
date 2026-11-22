@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {RetentionSettings} from "@/components/retention-settings";
+import {BenchmarkConsole} from "@/components/benchmark-console";
 
 type WorkspaceConsoleProps={workspaceId:string;section:string};
 type Json=Record<string,unknown>;
@@ -20,7 +21,8 @@ const sectionTitles:Record<string,[string,string]>={
   analysis:["Workload intelligence","Classify routine, complex and sensitive tasks before considering model replacement."],
   classifications:["Task suitability","The system does not equate repeated patterns with proven model quality."],
   calculator:["Cost & savings calculator","Explore pricing and fallback scenarios with costs per successful task."],
-  evaluations:["Candidate evaluations","Test cheaper model outputs on representative human-labeled data."],
+  evaluations:["Candidate evaluations","Compare candidates against preregistered, labeled samples and conservative budgets."],
+  benchmarking:["Benchmark governance","Freeze independent holdouts, simulate failures and record self-reported cost evidence."],
   policies:["Quality-gated routing policies","Create simulation-only rules; unqualified models stay in draft."],
   shadow:["Read-only shadow simulations","Project potential routing impact without modifying production answers."],
   reviews:["Human review queue","Record decisions on sensitive, unknown and low-confidence tasks."],
@@ -64,8 +66,16 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
   const {data,error,isLoading}=useQuery<Json>({
     queryKey:["contextops",workspaceId,section],
     queryFn:()=>fetchJson(api+"/"+(section==="classifications"?"analysis":section)),
-    enabled:section!=="calculator",
+    enabled:section!=="calculator"&&section!=="benchmarking",
     refetchInterval:section==="imports"?3000:false,
+  });
+  const {data:benchmarkData}=useQuery<{protocols:Array<{
+    id:string;name:string;status:string;config:{seed:string};
+  }>}>({
+    queryKey:["contextops",workspaceId,"benchmarking","protocols"],
+    queryFn:()=>fetchJson("/api/workspaces/"+workspaceId+"/benchmarking"),
+    enabled:section==="evaluations",
+    staleTime:30000,
   });
   const [busy,setBusy]=useState(false),[message,setMessage]=useState(""),[result,setResult]=useState<Json|null>(null);
   const [file,setFile]=useState<File|null>(null);
@@ -77,6 +87,7 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
   const [authorized,setAuthorized]=useState(false),[retention,setRetention]=useState(false);
   const [provider,setProvider]=useState("MOCK"),[model,setModel]=useState("mock-efficient");
   const [consent,setConsent]=useState(false),[evalCount,setEvalCount]=useState(30);
+  const [benchmarkProtocolId,setBenchmarkProtocolId]=useState("");
   const [samplingMode,setSamplingMode]=useState<"STRATIFIED"|"CHRONOLOGICAL">("STRATIFIED");
   const [samplingSeed,setSamplingSeed]=useState("pilot-v1");
   const [quality,setQuality]=useState(.95),[baselineIn,setBaselineIn]=useState(2);
@@ -234,6 +245,7 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
       candidateIn={candidateIn} setCandidateIn={setCandidateIn} candidateOut={candidateOut} setCandidateOut={setCandidateOut}
       eligible={eligible} setEligible={setEligible} fallback={fallback} setFallback={setFallback}
       platform={platform} setPlatform={setPlatform} infrastructure={infrastructure} setInfrastructure={setInfrastructure}/>}
+    {section==="benchmarking"&&<BenchmarkConsole workspaceId={workspaceId}/>}
     {section==="evaluations"&&<>
       <Card className="space-y-5 p-7"><div><h2 className="text-lg font-bold">Compare candidate model</h2><p className="mt-2 text-sm text-slate-500">Start with synthetic trace labels and the offline mock provider. Real provider evaluations require explicit consent and API keys in the server environment.</p></div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -241,6 +253,20 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
             const p=e.target.value;setProvider(p);setModel(p==="MOCK"?"mock-efficient":"");setConsent(false);}}>
             <option value="MOCK">Local deterministic mock</option><option value="OPENAI">OpenAI (external)</option><option value="ANTHROPIC">Anthropic (external)</option></select></label>
           <label className="text-sm font-semibold">Candidate model<Input className="mt-2" value={model} onChange={e=>setModel(e.target.value)} placeholder="Exact provider model ID"/></label>
+          <label className="text-sm font-semibold">Frozen benchmark protocol
+            <select className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-4"
+              value={benchmarkProtocolId} onChange={e=>setBenchmarkProtocolId(e.target.value)}>
+              <option value="">Legacy evaluation (MOCK only)</option>
+              {(benchmarkData?.protocols??[]).filter(p=>p.status==="FROZEN").map(p=>
+                <option value={p.id} key={p.id}>{p.name} · {p.config.seed}</option>)}
+            </select>
+            <span className="mt-2 block text-xs font-normal text-slate-500">A frozen protocol
+              controls the seed, time window and held-out records. A model may run against it once.</span>
+          </label>
+          <div className="flex items-end">
+            <Link className="text-sm font-bold text-brand hover:underline"
+              href={workspacesLink+"benchmarking"}>Preregister or freeze a benchmark →</Link>
+          </div>
           <NumberField label="Maximum labeled samples (5–50)" value={evalCount} onChange={setEvalCount} min={5} max={50}/>
           <NumberField label="Required quality (0.50–1.00)" value={quality} onChange={setQuality} min={.5} max={1} step={.01}/>
           <label className="text-sm font-semibold">Benchmark sample method
@@ -262,9 +288,11 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
         {button("Run candidate evaluation",()=>{void invoke("evaluations",{
           provider,model,consentExternal:provider==="MOCK"?false:consent,maximumSamples:evalCount,
           samplingMode,samplingSeed,
+          ...(benchmarkProtocolId?{protocolId:benchmarkProtocolId}:{}),
           minimumQuality:quality,baselineInputPrice:baselineIn,baselineOutputPrice:baselineOut,
           candidateInputPrice:candidateIn,candidateOutputPrice:candidateOut,
-        });},!model||!/^[A-Za-z0-9_-]{1,64}$/.test(samplingSeed)||provider!=="MOCK"&&!consent)}
+        });},!model||!/^[A-Za-z0-9_-]{1,64}$/.test(samplingSeed)||
+          provider!=="MOCK"&&(!consent||!benchmarkProtocolId))}
       </Card>
       <h2 className="text-lg font-bold">Recent evaluation runs</h2>
       <Table headers={["Candidate","Quality","Wilson lower 95%","Cost / success","Sample / seed","Coverage","Routing gate"]} rows={items("runs").map(r=>{

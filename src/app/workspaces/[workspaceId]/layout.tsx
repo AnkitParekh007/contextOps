@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { BarChart3, BrainCircuit, Calculator, ClipboardCheck, Database, FileText, Gauge,
-  GitBranch, Layers3, ScrollText, Settings2, ShieldCheck, Upload, FlaskConical } from "lucide-react";
+  GitBranch, Layers3, ScrollText, Settings2, ShieldCheck, Upload, FlaskConical, ScanSearch } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { LogoutButton } from "@/components/logout-button";
 import { workspaceAccess } from "@/lib/tenant";
@@ -13,6 +13,7 @@ const links=[
   {slug:"classifications",label:"Classification",icon:BrainCircuit},
   {slug:"calculator",label:"Savings calculator",icon:Calculator},
   {slug:"evaluations",label:"Model evaluations",icon:FlaskConical},
+  {slug:"benchmarking",label:"Benchmark governance",icon:ScanSearch},
   {slug:"policies",label:"Routing policies",icon:GitBranch},
   {slug:"shadow",label:"Shadow simulations",icon:Layers3},
   {slug:"reviews",label:"Human reviews",icon:ClipboardCheck},

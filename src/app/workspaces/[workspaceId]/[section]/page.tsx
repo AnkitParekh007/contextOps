@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { WorkspaceConsole } from "@/components/workspace-console";
 const sections=new Set([
   "overview","traces","imports","analysis","classifications","calculator","evaluations","policies",
-  "shadow","reports","audit","reviews","settings",
+  "shadow","reports","audit","reviews","settings","benchmarking",
 ]);
 export default async function WorkspaceSection({params}:{
   params:Promise<{workspaceId:string;section:string}>}){

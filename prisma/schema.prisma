@@ -86,6 +86,8 @@ model Workspace {
   shadowModeRunRecords ShadowModeRun[]
   feedbackEventRecords FeedbackEvent[]
   humanReviewRecords HumanReview[]
+  benchmarkProtocols BenchmarkProtocol[]
+  benchmarkReconciliations BenchmarkReconciliation[]
 
   @@unique([organizationId, slug])
   @@unique([id, organizationId])
@@ -251,6 +253,8 @@ model EvaluationDataset {
 
 model EvaluationRun {
   id String @id @default(cuid())
+  benchmarkProtocolId String?
+  benchmarkProtocol BenchmarkProtocol? @relation(fields: [benchmarkProtocolId], references: [id], onDelete: SetNull)
   organizationId String
   workspaceId String
   status String @default("RUNNING")
@@ -268,6 +272,7 @@ model EvaluationRun {
   workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
   
   @@index([organizationId, workspaceId])
+  @@unique([benchmarkProtocolId, provider, model])
 }
 
 model EvaluationResult {
@@ -436,4 +441,46 @@ model MfaRecoveryCode {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, codeHash])
+}
+
+/** Frozen, preregistered benchmark design; no customer content saved in the protocol. */
+model BenchmarkProtocol {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  name String @db.VarChar(120)
+  status String @default("DRAFT") @db.VarChar(16)
+  config Json
+  populationFingerprint String? @db.VarChar(64)
+  populationSize Int?
+  holdoutSize Int?
+  frozenAt DateTime?
+  createdById String
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields:[workspaceId, organizationId], references:[id, organizationId], onDelete:Cascade)
+  evaluationRuns EvaluationRun[]
+
+  @@index([organizationId, workspaceId, createdAt])
+}
+
+/** User-entered aggregate billed cost; does not certify an invoice or savings. */
+model BenchmarkReconciliation {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  evaluationRunId String
+  createdById String
+  periodStart DateTime
+  periodEnd DateTime
+  invoiceReferenceHash String @db.VarChar(64)
+  billedTotalUsd Float
+  billableTasks Int
+  successfulTasks Int
+  overheadUsd Float
+  evidenceLevel String @default("SELF_REPORTED_UNVERIFIED") @db.VarChar(40)
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields:[workspaceId, organizationId], references:[id, organizationId], onDelete:Cascade)
+
+  @@index([organizationId, workspaceId, createdAt])
+  @@index([evaluationRunId])
 }

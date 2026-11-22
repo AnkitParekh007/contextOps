@@ -59,3 +59,8 @@ Added hosted email verification and password recovery scaffolding (sender config
 ## Phase 12 — Reproducible Benchmarking (started)
 
 Seeded stratified label sampling, auditable selection fingerprints, Wilson diagnostic uncertainty, per-label errors, latency percentiles and cost-per-success metrics are implemented as a first increment. Independent labels, representative holdout, live provider budgets, customer data authorization and verified savings remain pending. See docs/PHASE12.md.
+
+ 
+### Phase 12 completion increment
+
+Frozen benchmark preregistration, disjoint holdout fingerprints, tenant-scoped governance, capped external-provider preflight (disabled by default), read-only failure stress and self-reported aggregate bill comparisons are implemented. Operator-financed deployment, actual customer invoice verification, independently adjudicated labels and representative statistical acceptance remain **blocked by external evidence/permissions**, not achieved by source code changes.

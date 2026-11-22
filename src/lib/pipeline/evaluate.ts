@@ -6,6 +6,11 @@ import { macroF1, compareOutput, type MetricExample } from "./scoring";
 import {drawLabeledSample} from "./sampling";
 import {wilson95,percentile,costPerSuccessfulTask,perLabelMetrics} from "./statistics";
 import {createHash} from "node:crypto";
+import {benchmarkProtocolSchema,validateFrozenPopulation} from "./protocol";
+import {loadBenchmarkPool} from "./benchmark-data";
+import {reserveExternalBudget} from "./budget";
+import {reserveOperatorExternalBudget} from "./operator-budget";
+import {compareRunQuality} from "./benchmark-insights";
 
 export const evaluationRequestSchema=z.object({
   provider:z.enum(["MOCK","ANTHROPIC","OPENAI"]),
@@ -14,6 +19,7 @@ export const evaluationRequestSchema=z.object({
   maximumSamples:z.number().int().min(5).max(50).default(30),
   samplingMode:z.enum(["STRATIFIED","CHRONOLOGICAL"]).default("STRATIFIED"),
   samplingSeed:z.string().trim().regex(/^[A-Za-z0-9_-]{1,64}$/).default("pilot-v1"),
+  protocolId:z.string().min(4).optional(),
   minimumQuality:z.number().min(0.5).max(1).default(0.95),
   maxQualityDrop:z.number().min(0).max(0.2).default(0.05),
   candidateInputPrice:z.number().min(0).max(100000),
@@ -29,35 +35,90 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
   }});
   const enforcedQuality=Math.max(params.minimumQuality,
     ...thresholds.map(t=>t.minimumQuality));
+
   const cappedSamples=params.provider==="MOCK"?params.maximumSamples:Math.min(params.maximumSamples,10);
-  const labels=await db.taskClassification.findMany({where:{workspaceId:workspace.id,organizationId:workspace.organizationId,
-    suitability:"ELIGIBLE",category:{in:["ROUTINE_CLASSIFICATION","STRUCTURED_EXTRACTION"]}},
-    take:10000,orderBy:{createdAt:"asc"}});
-  if(labels.length<5)throw Error("Need at least 5 labeled, eligible traces. Run analysis first.");
-  const candidates=await db.executionTrace.findMany({where:{
-    id:{in:labels.map(l=>l.traceId)},workspaceId:workspace.id,organizationId:workspace.organizationId,
-  }});
-  const byId=new Map(candidates.map(trace=>[trace.id,trace]));
-  const available=labels.map(classification=>({
-    classification,trace:byId.get(classification.traceId),
-  })).filter((record):record is {classification:(typeof labels)[number];trace:(typeof candidates)[number]}=>
-    Boolean(record.trace&&(record.trace.humanLabel??record.trace.expectedOutput)&&record.trace.inputText));
-  if(available.length<5)throw Error("Need at least 5 eligible traces with ground-truth labels.");
-  const strata=available.map(item=>{
-    const label=item.trace.humanLabel??item.trace.expectedOutput??"";
-    const value=item.classification.category==="ROUTINE_CLASSIFICATION"?
-      createHash("sha256").update(label.trim().toLowerCase()).digest("hex").slice(0,12):
-      "structured";
-    return {id:item.trace.id,stratum:item.classification.category+":"+value,...item};
-  });
-  const selection=drawLabeledSample(strata,{
-    mode:params.samplingMode,seed:params.samplingSeed,size:cappedSamples,
+  const protocol=params.protocolId?await db.benchmarkProtocol.findFirst({where:{
+    id:params.protocolId,workspaceId:workspace.id,
+    organizationId:workspace.organizationId,status:"FROZEN",frozenAt:{not:null},
+  }}):null;
+  if(params.protocolId&&!protocol)throw Error("Frozen tenant-scoped protocol required");
+  if(params.provider!=="MOCK"&&!protocol)
+    throw Error("External providers require a preregistered frozen protocol");
+  let allowedPool;
+  let mode=params.samplingMode,seed=params.samplingSeed;
+  let holdoutFingerprint:null|string=null;
+  let budget:null|ReturnType<typeof reserveExternalBudget>=null;
+  let protocolConfig:null|ReturnType<typeof benchmarkProtocolSchema.parse>=null;
+  if(protocol){
+    protocolConfig=benchmarkProtocolSchema.parse(protocol.config);
+    const population=await loadBenchmarkPool(workspace.id,workspace.organizationId,protocolConfig);
+    const frozen=validateFrozenPopulation(population,protocolConfig);
+    if(frozen.populationFingerprint!==protocol.populationFingerprint||
+      frozen.populationSize!==protocol.populationSize||
+      frozen.holdoutSize!==protocol.holdoutSize)
+      throw Error("Frozen benchmark cohort changed: create and freeze a new protocol");
+    allowedPool=frozen.split.holdout.map(item=>({
+      id:item.id,stratum:item.stratum,classification:item.classification,trace:item.trace,
+    }));
+    holdoutFingerprint=frozen.split.holdoutFingerprint;
+    mode="STRATIFIED";seed=protocolConfig.seed;
+    if(await db.evaluationRun.findFirst({where:{
+      benchmarkProtocolId:protocol.id,provider:params.provider,model:params.model,
+    },select:{id:true}}))
+      throw Error("This model has already used the frozen holdout; create a new protocol");
+  }else{
+    const labels=await db.taskClassification.findMany({where:{workspaceId:workspace.id,organizationId:workspace.organizationId,
+      suitability:"ELIGIBLE",category:{in:["ROUTINE_CLASSIFICATION","STRUCTURED_EXTRACTION"]}},
+      take:10000,orderBy:{createdAt:"asc"}});
+    if(labels.length<5)throw Error("Need at least 5 eligible traces. Run analysis first.");
+    const candidates=await db.executionTrace.findMany({where:{
+      id:{in:labels.map(l=>l.traceId)},workspaceId:workspace.id,
+      organizationId:workspace.organizationId,
+    }});
+    const byId=new Map(candidates.map(trace=>[trace.id,trace]));
+    const available=labels.map(classification=>({
+      classification,trace:byId.get(classification.traceId),
+    })).filter((item):item is {classification:(typeof labels)[number];
+      trace:(typeof candidates)[number]}=>Boolean(item.trace&&
+        (item.trace.humanLabel??item.trace.expectedOutput)&&item.trace.inputText));
+    allowedPool=available.map(item=>{
+      const label=item.trace.humanLabel??item.trace.expectedOutput??"";
+      const value=item.classification.category==="ROUTINE_CLASSIFICATION"?
+        createHash("sha256").update(label.trim().toLowerCase()).digest("hex").slice(0,12):
+        "structured";
+      return {id:item.trace.id,stratum:item.classification.category+":"+value,...item};
+    });
+  }
+  const selection=drawLabeledSample(allowedPool,{
+    mode,seed,size:cappedSamples,
   });
   const allowed=selection.selected;
-  if(allowed.length<5)throw Error("Not enough labeled records in sampled test set.");
+  if(allowed.length<5)throw Error("Not enough labeled records in the held-out test set");
   const labelSet=[...new Set(allowed.map(x=>x.trace.humanLabel??x.trace.expectedOutput??""))];
+  if(params.provider!=="MOCK"){
+    if(process.env.ENABLE_EXTERNAL_BENCHMARKS!=="true")
+      throw Error("External benchmark execution disabled by operator");
+    if(!protocolConfig||protocolConfig.dataProvenance!=="AUTHORIZED_SANITIZED"||
+      !protocolConfig.authorizationReference)
+      throw Error("External benchmark requires documented authorized sanitized provenance");
+    if(allowed.some(item=>item.classification.category!=="ROUTINE_CLASSIFICATION"))
+      throw Error("External structured extraction requires separate schema/rubric approval");
+    if(labelSet.some(label=>!/^[A-Za-z][A-Za-z0-9 /_-]{1,50}$/.test(label)))
+      throw Error("External benchmark contains unapproved label vocabulary");
+    budget=reserveExternalBudget({
+      texts:allowed.map(item=>item.trace.inputText??""),
+      labelVocabulary:labelSet,maxSpendUsd:protocolConfig.maxExternalSpendUsd,
+      inputPricePerMillion:params.candidateInputPrice,
+      outputPricePerMillion:params.candidateOutputPrice,
+    });
+    await reserveOperatorExternalBudget({
+      organizationId:workspace.organizationId,workspaceId:workspace.id,
+      estimatedMaximumUsd:budget.projectedMax,
+    });
+  }
   const run=await db.evaluationRun.create({data:{
     workspaceId:workspace.id,organizationId:workspace.organizationId,status:"RUNNING",
+    benchmarkProtocolId:protocol?.id,
     provider:params.provider,model:params.model,baselineModel:workspace.modelName,sampleSize:allowed.length,
   }});
   const scored:MetricExample[]=[];let totalCost=0,totalLatency=0,errors=0,baselineCorrect=0;
@@ -114,7 +175,9 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
     selection.metadata.coveredStrata===selection.metadata.totalStrata;
   // External pilot comparisons remain limited to 10 calls, so they cannot
   // pass a 30+ sample confidence gate and cannot authorize a routing policy.
-  const canRecommend=rawGate&&(params.provider==="MOCK"||externalStatisticalGate);
+  const canRecommend=rawGate&&(params.provider==="MOCK"||externalStatisticalGate)&&
+    (!protocolConfig||perLabelMetrics(scored).every(row=>
+      row.recall>=protocolConfig!.minimumClassRecall));
   const syntheticOnly=allowed.every(({trace})=>trace.metadata!==null&&
     typeof trace.metadata==="object"&&!Array.isArray(trace.metadata)&&
     "synthetic" in trace.metadata&&trace.metadata.synthetic===true);
@@ -123,6 +186,20 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
   const labelScores=perLabelMetrics(routineScores).map(row=>({
     ...row,label:"group-"+createHash("sha256").update(row.label).digest("hex").slice(0,10),
   }));
+  const previous=await db.evaluationRun.findFirst({where:{
+    workspaceId:workspace.id,organizationId:workspace.organizationId,
+    provider:params.provider,model:params.model,status:"COMPLETED",
+  },orderBy:{createdAt:"desc"}});
+  const previousDetails=previous?.details as Record<string,unknown>|null;
+  const priorSampling=previousDetails?.sampling as Record<string,unknown>|undefined;
+  const drift=previous?.qualityScore!==null&&previous?.qualityScore!==undefined?
+    compareRunQuality({
+      quality,provider:params.provider,model:params.model,
+      fingerprint:selection.metadata.fingerprint,size:allowed.length,
+    },{
+      quality:previous.qualityScore,provider:previous.provider,model:previous.model,
+      fingerprint:String(priorSampling?.fingerprint??""),size:previous.sampleSize,
+    }):null;
   const details={
     labelCount:allowed.length,baselineAccuracy,candidateMacroF1:macroF1(scored),
     candidateAccuracyLower95:confidence.lower,candidateAccuracyUpper95:confidence.upper,
@@ -135,6 +212,11 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
     structuredExtractionCount:allowed.filter(item=>
       item.classification.category==="STRUCTURED_EXTRACTION").length,
     sampling:selection.metadata,provenance:syntheticOnly?"synthetic_seed":"unverified_or_mixed",
+    benchmarkProtocolId:protocol?.id??null,
+    holdoutFingerprint,preregistered:Boolean(protocol),
+    externalEstimatedBudgetReservationUsd:budget?.projectedMax??null,
+    externalMaxSpendUsd:protocolConfig?.maxExternalSpendUsd??null,
+    billingGuarantee:false,driftDiagnostic:drift,
     statisticalValidation:params.provider!=="MOCK"&&externalStatisticalGate,
     statisticalCaution:"Wilson score assumes independent Bernoulli outcomes. Deterministic stratification and small samples are diagnostic, not proof of representative production quality.",
     minimumQuality:enforcedQuality,maxQualityDrop:params.maxQualityDrop,baselineCost,candidateCost:totalCost,
@@ -142,6 +224,7 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
     baselineInputPrice:params.baselineInputPrice,baselineOutputPrice:params.baselineOutputPrice,
     fallbackRate:1-quality,manualReviewRequired:invalid.length>0,provider:params.provider,
     canRecommend,rawQualityGate:rawGate,
+    labelRecallGate:protocolConfig?.minimumClassRecall??null,
     source:"labeled_test_set",externalConsent:params.consentExternal,
   };
   await db.evaluationDataset.create({data:{organizationId:workspace.organizationId,workspaceId:workspace.id,
@@ -162,6 +245,7 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
   await db.auditLog.create({data:{organizationId:workspace.organizationId,actorId,
     subjectType:"EvaluationRun",subjectId:run.id,action:"EVALUATION_COMPLETED",
     metadata:{provider:params.provider,model:params.model,samples:allowed.length,externalConsent:params.consentExternal,
-      samplingMode:params.samplingMode,samplingFingerprint:selection.metadata.fingerprint}}});
+      samplingMode:mode,samplingFingerprint:selection.metadata.fingerprint,
+      benchmarkProtocolId:protocol?.id??null,holdoutFingerprint}}});
   return {id:run.id,qualityScore:quality,errorRate,averageLatencyMs:avgLatency,estimatedCost:totalCost,details};
 }
