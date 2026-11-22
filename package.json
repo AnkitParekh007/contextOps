@@ -12,6 +12,8 @@
     "worker": "tsx scripts/worker.ts",
     "smoke:pilot": "node scripts/pilot-smoke.mjs",
     "smoke:operations": "node scripts/phase17-staging-acceptance.mjs",
+    "preflight:hosted": "node scripts/phase18-deployment-preflight.mjs",
+    "test:preflight": "node --test scripts/phase18-deployment-preflight.test.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
