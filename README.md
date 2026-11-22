@@ -172,3 +172,7 @@ A fail-closed, read-only operational probe now checks HTTPS target approval, ope
 ## Phase 18 — Hosted deployment configuration preflight
 
 `npm run preflight:hosted` validates the private hosted deployment configuration without contacting cloud services, displaying credentials, or granting a release. CI runs synthetic, offline validation cases. **CONFIG_READY_ONLY is not deployment approval.** See [Phase 18](docs/PHASE18.md).
+
+## Phase 19 — Hosted staging integration evidence
+
+`npm run test:staging-evidence` checks that synthetic CI reports cannot masquerade as hosted operational evidence. `npm run verify:staging -- phase17.json phase18.json <40-hex-sha>` assembles a sanitized **independent-review-required** record from privately collected read-only inputs; it never approves deployment. No hosting or provider calls are activated. See [Phase 19](docs/PHASE19.md).
