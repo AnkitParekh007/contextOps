@@ -1,8 +1,8 @@
 import {z} from "zod";
 
 /**
- * Phase 15 gate evidence is a review aid, not a certification authority.
- * Data entered by an operator does not independently verify the evidence URL.
+ * Operator evidence is a review aid, never an authorization mechanism.
+ * Do not expose review URLs or reviewer references in public CI reports.
  */
 export const requiredExternalGates=[
   {id:"hosted_https",label:"Authenticated HTTPS web and isolated worker/DB/Redis"},
@@ -16,6 +16,17 @@ export const requiredExternalGates=[
   {id:"human_signoff",label:"Documented human pilot launch approval"},
 ] as const;
 export type GateId=(typeof requiredExternalGates)[number]["id"];
+export const mandatorySyntheticChecks=[
+  "identity","tenant-isolation","frozen-protocol","holdout-non-reuse",
+  "provider-denial","fault-stress","invoice-provenance","audit-evidence",
+  "operator-boundary","cleanup",
+] as const;
+const syntheticCheckSchema=z.object({
+  name:z.enum(mandatorySyntheticChecks),
+  status:z.literal("PASS"),
+  description:z.string().min(1).max(159),
+}).strict();
+
 export const operatorEvidenceSchema=z.object({
   gate:z.enum(requiredExternalGates.map(x=>x.id) as [GateId,...GateId[]]),
   outcome:z.enum(["ATTESTED","REJECTED"]),
@@ -24,7 +35,7 @@ export const operatorEvidenceSchema=z.object({
     return uri.protocol==="https:"&&!uri.username&&!uri.password&&
       !uri.hash&&!uri.search;
   },"Use an HTTPS evidence URL without credentials, query parameters or fragments"),
-  reviewedAt:z.string().datetime(),
+  reviewedAt:z.string().datetime({offset:true}),
   reviewerReference:z.string().trim().min(6).max(100)
     .regex(/^[A-Za-z0-9 _./-]+$/),
 }).strict();
@@ -32,50 +43,50 @@ export const operatorManifestSchema=z.object({
   version:z.literal(1),
   evidence:z.array(operatorEvidenceSchema).max(100),
 }).strict();
+
 export const syntheticManifestSchema=z.object({
   schemaVersion:z.literal(1),
   phase:z.literal(14),
-  status:z.enum(["PASS","FAIL"]),
+  status:z.literal("PASS"),
   scope:z.literal("synthetic_ephemeral_ci_only"),
+  generatedAt:z.string().datetime({offset:true}),
+  releaseSha:z.string().regex(/^(?:[a-f0-9]{40}|local)$/),
+  checks:z.array(syntheticCheckSchema).length(mandatorySyntheticChecks.length),
+  checkCount:z.literal(10),
+  failures:z.array(z.never()).length(0),
   providerCalls:z.literal("MOCK_ONLY"),
   customerDataProcessed:z.literal(false),
   verifiedCustomerSavings:z.literal(false),
   externalAcceptance:z.literal("NOT_EVALUATED"),
   productionReady:z.literal(false),
-  checkCount:z.number().int().nonnegative(),
-  checks:z.array(z.object({
-    name:z.string(),status:z.literal("PASS"),
-  }).passthrough()),
-}).passthrough();
-export const mandatorySyntheticChecks=[
-  "identity","tenant-isolation","frozen-protocol","holdout-non-reuse",
-  "provider-denial","fault-stress","invoice-provenance","audit-evidence",
-  "operator-boundary","cleanup",
-] as const;
+  blockers:z.array(z.string().min(1).max(300)).min(4),
+}).strict();
 
 export function calculateReleaseReadiness(
   syntheticInput:unknown,operatorInput:unknown,now=new Date()
 ){
   const synthetic=syntheticManifestSchema.safeParse(syntheticInput);
   const operator=operatorManifestSchema.safeParse(operatorInput);
-  const names=synthetic.success?new Set(synthetic.data.checks.map(x=>x.name)):new Set<string>();
-  const validSynthetic=synthetic.success&&synthetic.data.status==="PASS"&&
-    synthetic.data.checkCount===synthetic.data.checks.length&&
-    mandatorySyntheticChecks.every(n=>names.has(n));
+  const names=synthetic.success?synthetic.data.checks.map(c=>c.name):[];
+  const validSynthetic=synthetic.success&&
+    new Set(names).size===mandatorySyntheticChecks.length&&
+    mandatorySyntheticChecks.every(name=>names.includes(name))&&
+    Date.parse(synthetic.data.generatedAt)<=now.getTime();
   const evidence=operator.success?operator.data.evidence:[];
   const gates=requiredExternalGates.map(gate=>{
-    const candidates=evidence.filter(item=>item.gate===gate.id).sort(
-      (a,b)=>b.reviewedAt.localeCompare(a.reviewedAt));
+    // Rejections are vetoes for the same timestamp, not quietly overruled
+    // by sorting tied operator records.
+    const candidates=evidence.filter(item=>item.gate===gate.id)
+      .sort((a,b)=>b.reviewedAt.localeCompare(a.reviewedAt)||
+        (a.outcome==="REJECTED"?-1:b.outcome==="REJECTED"?1:0));
     const selected=candidates[0];
     let state:"MISSING"|"REJECTED"|"RECORDED_UNVERIFIED"="MISSING";
     if(selected){
-      const checkedAt=new Date(selected.reviewedAt).getTime();
-      const age=now.getTime()-checkedAt;
+      const age=now.getTime()-Date.parse(selected.reviewedAt);
       if(age>=0&&age<=30*86400000)
         state=selected.outcome==="REJECTED"?"REJECTED":"RECORDED_UNVERIFIED";
     }
     return {id:gate.id,label:gate.label,state,
-      // Do not include user-entered internal URLs or reviewer names in public/CI summaries.
       hasRecentOperatorRecord:state!=="MISSING"};
   });
   const missing=gates.filter(g=>g.state!=="RECORDED_UNVERIFIED").map(g=>g.id);
@@ -86,8 +97,7 @@ export function calculateReleaseReadiness(
     operatorEvidenceParsed:operator.success,
     gateCount:gates.length,gates,missingGates:missing,
     operatorRecordsComplete:Boolean(operatorRecordsComplete),
-    // This offline tool never verifies linked artifacts, contracts, or real infrastructure.
     productionApproved:false,customerDataApproved:false,verifiedSavings:false,
-    reason:"Operator-entered evidence remains unverified; an independent decision is required before any hosted customer pilot.",
+    reason:"Operator-entered evidence remains unverified; independent review is required before any customer pilot.",
   } as const;
 }
