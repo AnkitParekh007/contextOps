@@ -8,7 +8,7 @@ The public-facing **React + Vite** marketing site lives in [`marketing/`](market
 
 It covers the nine implemented controlled-pilot capabilities, supported use cases, a six-step workflow, privacy limitations, and an interactive **scenario** calculator. The static site is deployed through [the GitHub Pages workflow](.github/workflows/marketing-pages.yml) on updates to `main`. The Next.js application and APIs remain separate; GitHub Pages cannot host server-side login, PostgreSQL, or model evaluations.
 
-For local marketing development, run `cd marketing && npm ci && npm run dev`. See [marketing/README.md](marketing/README.md). If GitHub Pages is not enabled, choose **Settings → Pages → Source: GitHub Actions**, and rerun the workflow.
+For local marketing development, run `cd marketing && npm install && npm run dev`. See [marketing/README.md](marketing/README.md). If GitHub Pages is not enabled, choose **Settings → Pages → Source: GitHub Actions**, and rerun the workflow.
 
 
 > **Measure AI cost, prove model quality, then optimize safely.**
