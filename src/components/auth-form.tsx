@@ -9,18 +9,18 @@ import { Input } from "@/components/ui/input";
 export function AuthForm({ mode }: { mode: "register" | "login" }) {
   const router = useRouter();
   const [name, setName] = useState(""); const [email, setEmail] = useState("");
-  const [password, setPassword] = useState(""); const [inviteCode, setInviteCode] = useState(""); const [error, setError] = useState("");
+  const [password, setPassword] = useState(""); const [mfaCode,setMfaCode]=useState(""); const [inviteCode, setInviteCode] = useState(""); const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   async function submit(e: FormEvent) {
     e.preventDefault(); setBusy(true); setError("");
     try {
       const res = await fetch("/api/auth/" + mode, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(mode === "register" ? { name, email, password, inviteCode } : { email, password }),
+        body: JSON.stringify(mode === "register" ? { name, email, password, inviteCode } : { email, password, mfaCode }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Unable to continue"); return; }
-      router.push(mode === "register" ? "/onboarding" : "/dashboard");
+      router.push(mode === "register" ? (data.verificationRequired ? "/check-email" : "/onboarding") : "/dashboard");
       router.refresh();
     } catch { setError("Connection failed. Please try again."); } finally { setBusy(false); }
   }
@@ -33,6 +33,11 @@ export function AuthForm({ mode }: { mode: "register" | "login" }) {
     {mode === "register" && <label className="block text-sm font-semibold text-ink">Pilot invitation code (required for hosted pilots)
       <Input autoComplete="off" placeholder="Code provided by the pilot operator" value={inviteCode} onChange={e=>setInviteCode(e.target.value)} className="mt-2"/>
       <span className="mt-2 block text-xs font-normal text-slate-500">Hosted pilot accounts are invitation-only. For local development, this field can be left blank.</span>
+    </label>}
+    {mode === "login" && <label className="block text-sm font-semibold text-ink">
+      Authenticator or recovery code (if enabled)
+      <Input autoComplete="one-time-code" inputMode="text" placeholder="6-digit code or recovery code"
+        value={mfaCode} onChange={e=>setMfaCode(e.target.value)} className="mt-2"/>
     </label>}
     {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     <Button disabled={busy} className="w-full" type="submit">{busy?"Working…":mode==="register"?"Create your account":"Sign in"} <ArrowRight size={17}/></Button>
