@@ -10,13 +10,13 @@ export async function GET(){
   });
   try{
     await redis.connect();
-    const [_,redisAlive,workerStamp]=await Promise.all([
+    const [dbReady,redisAlive,workerStamp]=await Promise.all([
       db.$queryRaw`SELECT 1`,
       redis.ping(),
       redis.get("contextops:worker:heartbeat"),
     ]);
     const stamp=Number(workerStamp);
-    const healthy=redisAlive==="PONG"&&Number.isFinite(stamp)&&
+    const healthy=Boolean(dbReady)&&redisAlive==="PONG"&&Number.isFinite(stamp)&&
       stamp>0&&Date.now()-stamp<30000;
     return NextResponse.json({status:healthy?"ok":"unavailable"},{
       status:healthy?200:503,headers:{"Cache-Control":"no-store"},

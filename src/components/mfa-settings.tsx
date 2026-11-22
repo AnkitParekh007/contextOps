@@ -74,7 +74,7 @@ export function MfaSettings({initiallyEnabled}:{initiallyEnabled:boolean}){
         type="submit" disabled={busy}>Set up authenticator</button>
     </form>}
     {!enabled&&enrollment&&<form onSubmit={e=>submit(e,"confirm")} className="mt-6 max-w-lg space-y-4">
-      <p className="text-sm text-slate-600">Use your authenticator app's manual account setup,
+      <p className="text-sm text-slate-600">Use your authenticator app&apos;s manual account setup,
         or copy the provisioning URL. Do not publish either value.</p>
       <div className="rounded-lg bg-slate-100 p-4">
         <span className="block text-xs font-semibold text-slate-600">Secret key (one-time display)</span>

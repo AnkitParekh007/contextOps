@@ -109,7 +109,6 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
     <Button disabled={busy||disabled} type="button" onClick={action}>
       {busy?<LoaderCircle size={17} className="animate-spin"/>:<Play size={16}/>} {label}</Button>;
   const items=(key:string)=>(data?.[key] as Json[]|undefined)??[];
-  const latest=(key:string)=>items(key)[0]??null;
   const [title,description]=sectionTitles[section];
   const workspacesLink="/workspaces/"+workspaceId+"/";
   const overview=data??{}, counts=(overview.counts??{}) as Json, latestEval=(overview.latestEvaluation??null) as Json|null;
