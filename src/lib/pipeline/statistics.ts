@@ -8,7 +8,7 @@ export function wilson95(successes:number,total:number){
   const den=1+z2/total;
   const center=(p+z2/(2*total))/den;
   const width=z*Math.sqrt(p*(1-p)/total+z2/(4*total*total))/den;
-  return {lower:Math.max(0,center-width),upper:Math.min(1,center+width)};
+  return {lower:Math.max(0,center-width),upper:successes===total?1:Math.min(1,center+width)};
 }
 export function percentile(values:number[],fraction:number):number|null{
   if(!values.length)return null;
