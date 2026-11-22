@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import Redis from "ioredis";
+import {cleanExpiredData} from "../src/lib/retention";
 const db=new PrismaClient();
 let running=true;
 const heartbeat=new Redis(process.env.REDIS_URL ?? "redis://localhost:6379",{
@@ -76,6 +77,12 @@ async function workOne(){
 async function main(){
   await markWorkerHealthy();
   const timer=setInterval(()=>{void markWorkerHealthy();},10000);
+  const maintenance=setInterval(()=>{
+    void cleanExpiredData(db).catch(error=>console.error("Retention maintenance failure",
+      error instanceof Error?error.message:"unknown"));
+  },60*60*1000);
+  await cleanExpiredData(db).catch(error=>console.error("Initial retention maintenance failure",
+    error instanceof Error?error.message:"unknown"));
   try{
   while(running){
     try{const worked=await workOne();if(!worked)await new Promise(r=>setTimeout(r,1500));}
@@ -83,6 +90,7 @@ async function main(){
   }
   }finally{
     clearInterval(timer);
+    clearInterval(maintenance);
     heartbeat.disconnect();
     await db.$disconnect();
   }

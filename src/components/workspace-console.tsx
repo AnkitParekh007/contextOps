@@ -9,6 +9,7 @@ import { ArrowRight, CheckCircle2, CircleAlert, Download, FileDown,
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {RetentionSettings} from "@/components/retention-settings";
 
 type WorkspaceConsoleProps={workspaceId:string;section:string};
 type Json=Record<string,unknown>;
@@ -350,6 +351,10 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
         {button("Connect mock support system",()=>{void invoke("connections",{
           name:"Demo support connector",provider:"MOCK",confirmNoExternalData:true});})}
       </Card>
+      {(data?.role==="OWNER"||data?.role==="ADMIN")&&data?.workspace&&
+        <RetentionSettings workspaceId={workspaceId}
+          name={String(((data?.workspace??{}) as Json).name??"workspace")}
+          initialUntil={String(((data?.workspace??{}) as Json).retentionUntil??"")||null}/>}
       {data?.role==="OWNER"||data?.role==="ADMIN"?<Card className="space-y-4 border-red-200 p-7">
         <h2 className="text-lg font-bold text-red-700">Delete workspace data</h2>
         <p className="text-sm text-slate-600">Permanently deletes this workspace, execution traces, evaluations, policies, reports and simulations. Organization and audit history remain.</p>
