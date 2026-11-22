@@ -123,6 +123,8 @@ model ImportJob {
     total Int @default(0)
     processed Int @default(0)
     rejected Int @default(0)
+    attempts Int @default(0)
+    nextAttemptAt DateTime?
     issues Json?
     startedAt DateTime?
     completedAt DateTime?
