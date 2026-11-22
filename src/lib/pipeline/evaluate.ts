@@ -3,12 +3,17 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { infer, type ProviderKey } from "./providers";
 import { macroF1, compareOutput, type MetricExample } from "./scoring";
+import {drawLabeledSample} from "./sampling";
+import {wilson95,percentile,costPerSuccessfulTask,perLabelMetrics} from "./statistics";
+import {createHash} from "node:crypto";
 
 export const evaluationRequestSchema=z.object({
   provider:z.enum(["MOCK","ANTHROPIC","OPENAI"]),
   model:z.string().trim().min(2).max(120),
   consentExternal:z.boolean().default(false),
   maximumSamples:z.number().int().min(5).max(50).default(30),
+  samplingMode:z.enum(["STRATIFIED","CHRONOLOGICAL"]).default("STRATIFIED"),
+  samplingSeed:z.string().trim().regex(/^[A-Za-z0-9_-]{1,64}$/).default("pilot-v1"),
   minimumQuality:z.number().min(0.5).max(1).default(0.95),
   maxQualityDrop:z.number().min(0).max(0.2).default(0.05),
   candidateInputPrice:z.number().min(0).max(100000),
@@ -27,11 +32,29 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
   const cappedSamples=params.provider==="MOCK"?params.maximumSamples:Math.min(params.maximumSamples,10);
   const labels=await db.taskClassification.findMany({where:{workspaceId:workspace.id,organizationId:workspace.organizationId,
     suitability:"ELIGIBLE",category:{in:["ROUTINE_CLASSIFICATION","STRUCTURED_EXTRACTION"]}},
-    take:cappedSamples,orderBy:{createdAt:"asc"}});
+    take:10000,orderBy:[{createdAt:"asc"},{traceId:"asc"}]});
   if(labels.length<5)throw Error("Need at least 5 labeled, eligible traces. Run analysis first.");
-  const candidates=await db.executionTrace.findMany({where:{id:{in:labels.map(l=>l.traceId)},workspaceId:workspace.id}});
-  const byId=new Map(candidates.map(t=>[t.id,t]));
-  const allowed=labels.map(l=>({classification:l,trace:byId.get(l.traceId)!})).filter(x=>x.trace);
+  const candidates=await db.executionTrace.findMany({where:{
+    id:{in:labels.map(l=>l.traceId)},workspaceId:workspace.id,organizationId:workspace.organizationId,
+  }});
+  const byId=new Map(candidates.map(trace=>[trace.id,trace]));
+  const available=labels.map(classification=>({
+    classification,trace:byId.get(classification.traceId),
+  })).filter((record):record is {classification:(typeof labels)[number];trace:(typeof candidates)[number]}=>
+    Boolean(record.trace&&(record.trace.humanLabel??record.trace.expectedOutput)&&record.trace.inputText));
+  if(available.length<5)throw Error("Need at least 5 eligible traces with ground-truth labels.");
+  const strata=available.map(item=>{
+    const label=item.trace.humanLabel??item.trace.expectedOutput??"";
+    const value=item.classification.category==="ROUTINE_CLASSIFICATION"?
+      createHash("sha256").update(label.trim().toLowerCase()).digest("hex").slice(0,12):
+      "structured";
+    return {id:item.trace.id,stratum:item.classification.category+":"+value,...item};
+  });
+  const selection=drawLabeledSample(strata,{
+    mode:params.samplingMode,seed:params.samplingSeed,size:cappedSamples,
+  });
+  const allowed=selection.selected;
+  if(allowed.length<5)throw Error("Not enough labeled records in sampled test set.");
   const labelSet=[...new Set(allowed.map(x=>x.trace.humanLabel??x.trace.expectedOutput??""))];
   const run=await db.evaluationRun.create({data:{
     workspaceId:workspace.id,organizationId:workspace.organizationId,status:"RUNNING",
