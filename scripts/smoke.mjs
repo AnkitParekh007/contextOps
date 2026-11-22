@@ -57,6 +57,8 @@ assert.equal((await call("/api/organizations/" + orgId + "/workspaces", { method
 const logout = await call("/api/auth/logout", { method: "POST", cookie: cookieA });
 assert.equal(logout.status, 200);
 assert.equal((await call("/api/me", { cookie: logout.cookie })).status, 401);
+assert.equal((await call("/api/me", { cookie: cookieA })).status, 401,
+  "Reusing the original pre-logout JWT must not revive a revoked server session");
 
 const loginBad = await call("/api/auth/login", { method: "POST",
   body: { email: "owner-" + nonce + "@example.test", password: "not-the-password" } });
@@ -65,4 +67,23 @@ const login = await call("/api/auth/login", { method: "POST",
   body: { email: "owner-" + nonce + "@example.test", password } });
 assert.equal(login.status, 200);
 assert.equal((await call("/api/me", { cookie: login.cookie })).status, 200);
-console.log("Phase 1 smoke passed: register, session, organization, workspace, isolation, logout, login");
+const session2 = await call("/api/auth/login", {
+  method: "POST", body: { email: "owner-" + nonce + "@example.test", password },
+});
+assert.equal(session2.status, 200, JSON.stringify(session2.json));
+assert.equal((await call("/api/me", { cookie: session2.cookie })).status, 200);
+const wrongRevoke = await call("/api/auth/revoke-all", { method: "POST",
+  cookie: login.cookie, body: { password: "incorrect_password" },
+});
+assert.equal(wrongRevoke.status, 401);
+assert.equal((await call("/api/me", { cookie: login.cookie })).status, 200);
+const revoke = await call("/api/auth/revoke-all", { method: "POST",
+  cookie: login.cookie, body: { password },
+});
+assert.equal(revoke.status, 200);
+assert.ok(revoke.json.revoked >= 2, "Both active browser sessions should be revoked");
+assert.equal((await call("/api/me", { cookie: login.cookie })).status, 401,
+  "First stolen session cookie remains invalid");
+assert.equal((await call("/api/me", { cookie: session2.cookie })).status, 401,
+  "Second device session remains invalid");
+console.log("Phase 11 auth smoke PASS: per-device logout invalidates stolen JWT, password-confirmed global revocation closes every active session");

@@ -48,3 +48,11 @@ Before allowing enterprise production data: verify identity flows, TLS, secrets 
 ## Important operational note
 
 Import processing is asynchronous; if the worker is down, jobs remain queued. Never expose PostgreSQL or Redis directly to the public Internet. Model credentials are for backend runtime only.
+
+## Phase 11 deployment upgrade
+
+Apply the `AuthSession` migration before accepting traffic from an upgraded web service. Existing pre-Phase-11 JWTs lack a `jti` and are intentionally rejected; pilot testers must reauthenticate. Session revocation requires Postgres availability, and application requests fail closed when it is unavailable.
+
+For operator recovery, use managed encrypted provider backups and restore into an isolated environment first. The CI-only script `scripts/verify-backup-restore.sh` runs with GitHub Actions' synthetic PostgreSQL container and must **never be aimed at a production DB**. It does not replace an operational backup service.
+
+See [Phase 11 plan](PHASE11.md) for the authorization and recovery acceptance checklist.

@@ -4,5 +4,5 @@ import { apiError } from "@/lib/http";
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return apiError("Unauthorized", 401);
-  return NextResponse.json({ user });
+  return NextResponse.json({ user }, { headers: { "Cache-Control": "private, no-store" } });
 }
