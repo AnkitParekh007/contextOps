@@ -1,55 +1,36 @@
-# Implementation phases and acceptance criteria
+# ContextOps AI — Phase Delivery and Remaining Gates
 
-## Phase 1 — Foundation (this PR)
+The initial product brief defines nine engineering phases. The following status describes **pilot MVP scope**, not enterprise launch certification.
 
-Deliver:
-- Next.js/React/TypeScript, Tailwind and shadcn-style UI primitives.
-- Versioned PostgreSQL Prisma migration.
-- Register, login, logout and signed HTTP-only session cookies.
-- Redis auth throttling; Zod validation and same-origin checks.
-- Organization membership, role-based workspace APIs and audit record on creation.
-- Marketing landing page, onboarding and authenticated dashboard.
-- Local Docker Compose, opt-in demo seed and unit tests.
+| Phase | Implemented pilot capabilities | Status |
+| --- | --- | --- |
+| 1. Foundation | Next.js UI, PostgreSQL, Redis, auth, tenants, owner/admin/analyst/viewer, workspace onboarding | Implemented |
+| 2. Ingestion | CSV/JSONL/JSON, best-effort redaction, mapping/preview, 10k max, queued worker, duplicate skipping, progress and retries | Implemented |
+| 3. Analysis | Deterministic classifier, reason codes, task categories, risk, label coverage, review queue | Implemented |
+| 4. Costing | User rates, token baselines, premium fallback, fixed fees, per-success cost and break-even volume | Implemented |
+| 5. Evaluation | Two optional hosted-provider adapters + local mock, exact labeled metrics, F1, quality & latency gates | Implemented |
+| 6. Policy engine | Simulation-only policies, explainable draft vs quality-approved status, fallback and review routing | Implemented |
+| 7. Shadow mode | Offline per-trace simulation without changing customer production workflow | Implemented |
+| 8. Dashboard/reports | Workflow navigation, charts, quality metrics, simulated savings, audit, Markdown client report | Implemented |
+| 9. QA/deployment | Unit + integration smoke CI, demo seed, production container guidance, security limitations | Implemented for controlled pilot |
 
-**Acceptance:** New account registers, signs in, creates company/workflow, sees scoped dashboard, signs out. Unknown users cannot enumerate organizations; viewer cannot create workspaces. Docker setup applies migrations and starts API and UI.
+## Outside pilot MVP (not complete)
 
-## Phase 2 — Trace ingestion
+- Live production router, closed-loop monitoring of actual production outcomes and **verified savings**
+- Robust high-volume benchmarking of real customer data and statistically representative model quality
+- Full automated PII/DLP guarantees, SSO/MFA, email recovery and compliance certification
+- Complex semantic-answer rubric/LLM judge with human review and calibration
+- Production CRM/ERP connectors, encrypted customer secrets vault and fine-tuning
+- Automatic data lifecycle/backup expiry, disaster recovery, penetration testing and enterprise billing
+- Model policy circuit breaking during real live use (no live-use route exists yet)
 
-CSV/JSONL/JSON upload; mapping preview; PII+secret redaction, consent gate, retention settings, idempotency, job progress/retry, synthetic 500-ticket demo. Test 10k traces and no raw-content leakage.
+## Post-pilot success gates
 
-## Phase 3 — Workload intelligence
+1. Obtain one authorized, narrow customer workflow with sufficient task volume.
+2. Establish an agreed cost and success-rate baseline from actual invoices and labeled outputs.
+3. Run a statistically representative shadow benchmark with per-task quality thresholds, retries and human review.
+4. Validate privacy, provider contracts and data residency.
+5. Stage a controlled rollout **only after** separate security, legal and production-route approvals.
+6. Track measured cost per successful task, error/quality drift, latency and net savings including operating expense.
 
-Deterministic task grouping, token/cost baselines, risk flags, eligible/review/blocked categories, reason codes and labeled-data coverage. No claims of model adequacy from clustering.
-
-## Phase 4 — Cost and savings
-
-Current and alternative pricing inputs, caching and retry-aware scenarios, fallback rates, model costs, hosting/fees, gross/net monthly and annual projections, per-success economics and break-even point.
-
-## Phase 5 — Evaluation harness
-
-Provider adapters (Anthropic, OpenAI, mock), permission gate, representative labeled runs, accuracy/F1, extraction exact match, schema validity, text rubric review, latency/error/fallback measures and explicit quality thresholds.
-
-## Phase 6 — Policy engine
-
-Risk-first routing eligibility, versioned policy changes, failure circuit breakers, approval queue, audit trail. No production interception in the MVP.
-
-## Phase 7 — Shadow mode
-
-Simulated route analysis on traces and optional consented shadow calls, originals unchanged, simulation explicitly labeled, comparison and drill-downs.
-
-## Phase 8 — Dashboard and reports
-
-Cost/quality by workflow/task/model, routing mix, error and fallback trends, estimated vs simulated vs verified savings, report PDF/Markdown and complete assumptions.
-
-## Phase 9 — Pilot hardening
-
-Tenant isolation integration tests; security review, dependencies and migrations, provider contract review, deletion workflows, observability, performance/load tests, recovery and deploy guide.
-
-## Next 30 days
-
-Week 1: Phase 1 hardening and first customer interviews.
-Week 2: Trace ingestion and synthetic demo.
-Week 3: Classification, transparent cost model and comparison data.
-Week 4: Provider evaluation, first shadow experiment and pilot report.
-
-Avoid custom-model training until one workflow establishes measurable savings and quality.
+No numerical reduction or guaranteed equivalence should be marketed without a verified live customer case study.

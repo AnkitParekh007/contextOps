@@ -1,87 +1,113 @@
 # ContextOps AI
 
-**Measured AI cost optimization, with quality gates and safe fallbacks.**
+> **Measure AI cost, prove model quality, then optimize safely.**
 
-ContextOps AI helps B2B teams understand expensive AI workloads, benchmark less costly models, and safely plan routing changes without compromising business outcomes.
+ContextOps AI is a pilot-oriented B2B application for analyzing an existing AI workflow and testing whether some repeatable tasks could be handled by a cheaper model. It is not a replacement for Claude, GPT, or Gemini. It is a quality-first assessment platform with **simulation-only** routing.
 
-> This repository is an **early MVP**. Phase 1 implements an authenticated workspace foundation. Trace ingestion, quality evaluations, savings analysis, routing and shadow mode are planned phases—not operational features yet.
+[![CI](https://github.com/AnkitParekh007/contextOps/actions/workflows/ci.yml/badge.svg)](https://github.com/AnkitParekh007/contextOps/actions/workflows/ci.yml)
 
-## Product roadmap at a glance
+**Promise:** Keep your existing AI automations. Make them more cost-efficient, measure results, and preserve quality controls.
 
-| Phase | Focus | Status |
-| --- | --- | --- |
-| 1 | Auth, organizations, workspaces, PostgreSQL, audit foundation | Implemented in this branch |
-| 2 | CSV/JSONL/JSON ingestion, PII redaction, deduplication, job progress | Planned |
-| 3 | Deterministic workload analysis and classification | Planned |
-| 4 | Transparent savings calculator | Planned |
-| 5 | Model evaluation harness and providers | Planned |
-| 6 | Quality-gated policy engine | Planned |
-| 7 | Read-only shadow-mode experiments | Planned |
-| 8 | Dashboard and report exports | Planned |
-| 9 | Hardening, integration tests, pilot deployment | Planned |
+## Included in this MVP
 
-## Local development
+- **Onboarding:** email/password registration, company + workspace setup, tenant membership and owner/admin/analyst/viewer roles.
+- **Import:** CSV, JSONL, JSON, schema aliases/custom mapping, redacted preview, upload limits, idempotent asynchronous processing with resumable retries and progress.
+- **Demo:** 500 generated Northwind Logistics support tickets, with six labeled classifications and no real customer content.
+- **Analysis:** task grouping, heuristic classification/confidence, trace statistics, sensitive/complex task blocks, human review queue.
+- **Cost calculator:** configurable model rates, token usage, eligible volume, fallback attempts, infrastructure fees, quality/success assumptions, break-even volume and net savings.
+- **Evaluation:** baseline vs candidate on labeled examples; deterministic local mock; optional explicitly consented OpenAI and Anthropic provider adapters. Macro-F1, accuracy, output validity, errors, latency and cost.
+- **Routing policies:** versioned draft/approved-for-simulation status, quality/risk thresholds, cost benchmark, premium fallback and mandatory review for high-risk work.
+- **Shadow simulation:** offline route and fallback projections. Production answers remain untouched.
+- **Reports:** export a Markdown assessment with assumptions, test evidence, risk notes and **no invented verified savings**.
+- **Governance:** audit history, quality thresholds, permission checks, a workspace data deletion endpoint and optional demo connector.
+- **Deployment:** Docker Compose for local setup, separate Postgres-backed worker, isolated test CI and production-container guidance.
 
-Requirements: Node.js 22.12+, Docker and Docker Compose.
+**Not included:** live production request interception; custom model fine-tuning; dedicated GPU hosting; enterprise SSO; complex billing; regulated-workload certification; production CRM connectors; actual verified savings. Those require a later gated rollout.
+
+## Requirements
+
+- Node.js **22.12+** (or Docker)
+- Docker Engine + Compose
+- Local port 3000, PostgreSQL port 5432 and Redis port 6379 available
+
+## Start locally
 
 ```bash
 git clone https://github.com/AnkitParekh007/contextOps.git
 cd contextOps
 cp .env.example .env
-# Edit .env: replace AUTH_SECRET with the output of: openssl rand -hex 32
+# Set AUTH_SECRET to the result of: openssl rand -hex 32
 docker compose up --build -d
 ```
 
-Open **http://localhost:3000**. Register, then create a company and its first AI workflow. The compose app waits for PostgreSQL/Redis readiness and applies the versioned Prisma migration.
+Navigate to **http://localhost:3000**, register, create a company and workspace, then click its name to enter the workflow console.
 
-To develop without the app container:
+The Compose stack starts four containers: Next.js web app, PostgreSQL 16, Redis 7 and the import worker. On first boot, the app applies versioned Prisma migrations.
+
+For a host-based development workflow:
 
 ```bash
 docker compose up -d db redis
 npm install
 npm run db:deploy
 npm run dev
+# In another terminal:
+npm run worker
 ```
 
-When working on a feature branch, ensure you run the correct branch locally. Never commit `.env`.
+For a synthetic demo account, set `DEMO_EMAIL` and `DEMO_PASSWORD` in your private environment and run `npm run db:seed`. The same 500 records can also be generated through the dashboard.
 
-### Optional demo workspace
+## Example customer journey
 
-Set `DEMO_EMAIL` and `DEMO_PASSWORD` in your local environment (not committed), then:
+1. **Create workspace.** Choose your current model provider and AI task type.
+2. **Import traces.** Use the template, preview redaction/mapping, confirm authorization and queue a sample. **Do not upload sensitive or regulated records for this pilot without separate approval and DLP controls.**
+3. **Analyze.** Identify routine labeled tasks versus uncertain, complex or sensitive records.
+4. **Evaluate.** Choose local `MOCK / mock-efficient` and provide sample input/output prices. Run on the labeled data.
+5. **Create policy.** Only candidate routes passing minimum accuracy, baseline non-inferiority, cost and error gates become **approved for simulation**.
+6. **Run shadow mode.** Observe projected task splits and sample costs without routing any production task.
+7. **Run calculator.** Include estimated fallbacks, premium retries, fixed fees, success-rate changes and break-even volume.
+8. **Export report.** Download the Markdown assessment; review all estimates and evidence.
+
+**Important:** Sample API costs are calculated from trace token counts and *provided rate assumptions*. They are not validated provider invoices. A simulated saving is not a realized saving.
+
+## AI providers
+
+| Provider | Availability | Data transfer |
+| --- | --- | --- |
+| MOCK | Enabled without keys | Local deterministic outputs; synthetic testing |
+| OpenAI | Optional, requires `OPENAI_API_KEY` server-side | Redacted labeled samples only after user consent |
+| Anthropic | Optional, requires `ANTHROPIC_API_KEY` server-side | Redacted labeled samples only after user consent |
+
+Never put provider API keys in frontend variables. Model identifiers and prices are user-supplied so API/model availability can evolve without forcing a new release. External evaluation costs are billed by the provider to the configured account.
+
+## Tests
 
 ```bash
-npm run db:seed
-```
-
-This creates a synthetic **Northwind Logistics — Support Ticket Triage** workspace without traces or real customer content. The 500 synthetic tickets are scheduled for Phase 2.
-
-### Quality checks
-
-```bash
+npm run db:deploy
 npm run typecheck
 npm run lint
 npm test
 npm run build
+# With Postgres, Redis, web app AND worker running:
+npm run smoke:pilot
 ```
 
-Checks are configured in GitHub Actions. External package installation is required for first-time setup.
+CI also runs Phase 1 registration and tenancy tests. It provisions ephemeral PostgreSQL/Redis services, applies migrations and tests the synthetic end-to-end flow. No live model API keys are used in CI.
 
-## Design and API
+## Documentation
 
-- [Product requirements](docs/PRODUCT_REQUIREMENTS.md)
+- [Requirements and success metrics](docs/PRODUCT_REQUIREMENTS.md)
 - [Architecture and data model](docs/ARCHITECTURE.md)
-- [API contract](docs/API.md)
-- [Phases and acceptance tests](docs/ROADMAP.md)
-- [Security and pilot limitations](docs/SECURITY.md)
+- [API endpoints and examples](docs/API.md)
+- [Phase completion and acceptance matrix](docs/ACCEPTANCE.md)
+- [Security and privacy limitations](docs/SECURITY.md)
+- [Pilot runbook](docs/PILOT_OPERATIONS.md)
+- [Production-container deployment guide](docs/DEPLOYMENT.md)
+- [Roadmap and unresolved production gates](docs/ROADMAP.md)
 
-## Security boundaries
+## Safety & limitations
 
-- Passwords are bcrypt-hashed; sessions use HTTP-only, signed cookies; Redis limits authentication attempts.
-- Workspace reads and writes are scoped to authenticated organization membership with role checks.
-- No provider keys or prompts are collected in Phase 1.
-- No production live-routing or verified savings claims are implemented.
-- Before accepting real customer traces, implement redaction, consent, retention, tenant access tests and deletion workflows.
-- Do not use third-party model responses as training data without appropriate legal and contractual permission.
+The current product is appropriate for a **controlled pilot using synthetic or approved, sanitized data**. Automated PII removal is best-effort; it is not certified DLP. A real-customer deployment requires contractual/provider reviews, encryption/key management, verified identity, cross-tenant penetration testing, data retention controls, monitoring and an incident-response plan. Never describe a simulated savings projection as a realized outcome.
 
 ## License
 

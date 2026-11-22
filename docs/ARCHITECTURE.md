@@ -1,84 +1,92 @@
-# Architecture and Data Model
+# ContextOps AI — System Architecture
 
-## System
+## Design overview
 
 ```text
-Browser (Next.js App Router)
-  -> Auth / organization APIs (Zod + session + RBAC)
-  -> Prisma + PostgreSQL (users, orgs, workspaces, audit records)
-  -> Redis (authentication throttling)
-
-Future:
-  Authorized traces -> Redaction & validation -> Ingestion jobs
-    -> Workload analyzer -> Evaluation harness -> Policy engine
-    -> Shadow-mode simulator -> Dashboard / report / audit
+Browser (React + Next.js App Router, TanStack Query, Tailwind, Recharts)
+   |
+   | cookie session + same-origin API access
+   v
+Authenticated tenant API (Zod + membership roles + audit)
+   |
+   +--> PostgreSQL / Prisma --- Users / orgs / workspaces / memberships
+   |                        \-- Trace, cost, quality, evaluation, policy, shadow, report tables
+   |
+   +--> Redis --------------- Auth and workflow rate limiting
+   |
+   +--> Trace parsing & redaction (server-side, consented)
+   |           |
+   |           v
+   |      ImportJob with sanitized payload, status and issues (PostgreSQL)
+   |           |
+   |           v
+   |      Separate worker, 200-row idempotent createMany batches,
+   |      resumable claims and bounded exponential retry
+   |
+   +--> Workload analyzer --> Risk classifier / quality-label coverage
+   |
+   +--> Evaluation harness --> MOCK / optional OpenAI / optional Anthropic
+   |                           --> exact classification, macro F1, extraction schema
+   |
+   +--> Simulation policy --> Risk / confidence / minimum quality / fallback
+   |
+   +--> Offline shadow run --> Projected model mix and modeled cost
+   |
+   \--> Dashboard, human review, Markdown reports, append-only audit
 ```
 
-The UI and API run in Next.js. Keep adapters and domain logic outside route handlers. The current app does not call Anthropic/OpenAI or ingest customer prompts.
+Production request interception is **deliberately absent**. The shadow engine reads existing traces and does not modify any customer workflow.
 
-## Phase 1 logical tables
+## Data model
 
-| Table | Purpose | Tenant boundary |
-| --- | --- | --- |
-| User | Individual login identity; hashed password | User id |
-| Organization | Customer account and company name | Organization id |
-| Membership | User-to-organization role (OWNER, ADMIN, ANALYST, VIEWER) | Unique user+org |
-| Workspace | One business AI workflow, provider/model metadata | Organization id |
-| AuditLog | Immutable event records for foundational actions | Organization id |
+Each business record has `organizationId` and `workspaceId`. Every domain record holds a **composite foreign key** to `Workspace(id, organizationId)` to prevent accidental cross-organization references. Database cascades remove domain data when a workspace is deleted. API queries are also scoped to the authenticated user's organization membership.
 
-Database FKs, unique constraints and scoped Prisma queries support tenant isolation. For the MVP, the application enforces membership authorization. A pilot-ready deployment will additionally require automated cross-tenant security tests and stronger operational controls.
-
-## Planned domain tables (not created yet)
-
-| Table | Key design requirements |
+| Domain | Prisma entities |
 | --- | --- |
-| workflow_connections | org_id, workspace_id, provider, encrypted credentials reference, consent |
-| execution_traces | tenant/workflow/external ID, tokens, latency, model, sanitized input/output and metadata |
-| trace_events | chronological steps linked to trace |
-| task_classifications | label, confidence, risk, explainable suitability |
-| routing_policies | version, risk/quality bounds, status, approval |
-| model_routes | provider/model, fallback order, pricing snapshot |
-| evaluation_datasets | version, task category, labeled examples and provenance |
-| evaluation_runs | baseline/candidate models, status, evaluator config |
-| evaluation_results | output, quality, latency, cost, errors |
-| quality_thresholds | workspace/task-specific thresholds |
-| cost_snapshots | effective-dated model pricing and currency |
-| savings_reports | assumptions, gross/net, method, confidence and status |
-| shadow_mode_runs | isolated simulation experiment and outcomes |
-| feedback_events | human review, label correction, drift signal |
+| Identity / tenancy | User, Organization, Membership, Workspace |
+| Processing / consent | WorkflowConnection, ImportJob, ExecutionTrace, TraceEvent |
+| Analysis | TaskClassification, QualityThreshold, HumanReview, FeedbackEvent |
+| Models / pricing | ModelRoute, CostSnapshot |
+| Evaluation | EvaluationDataset, EvaluationRun, EvaluationResult |
+| Routing / outcomes | RoutingPolicy, ShadowModeRun, SavingsReport |
+| Accountability | AuditLog |
 
-All domain records will include organization and workspace scoping where relevant. Tenant composite foreign keys and data deletion plans will be applied before Phase 2 enables real data uploads.
+The schema and versioned migrations are the source of truth. Some extensible tables (e.g. `TraceEvent`) are prepared for later integrations; do not treat schema presence as evidence of an active feature.
 
-## Key planned algorithms
+## Ingestion
 
-**Candidate selection**
+- Accept JSON arrays, JSONL lines or RFC-style quoted CSV records.
+- Detect aliases, support custom field mapping and validate typed values.
+- Limit upload to 16 MiB / 10,000 traces.
+- Sanitize text and metadata before persisting it; never retain uploaded raw bytes.
+- Store sanitized import batches as queued jobs. The worker replays with `createMany(skipDuplicates)` using `(workspaceId, externalTraceId)` uniqueness.
+- On successful completion the queued payload is erased; retained trace records contain only sanitized content.
+
+## Model evaluation
+
+Representative, labeled task classes (classification and structured extraction only) are considered for automatic scoring. Baseline scores use previously observed outputs; candidate responses are generated without including expected answers in their prompt. Evaluation records baseline accuracy, candidate macro-F1, correctness, per-task costs, latency and provider failures.
+
+A candidate route is simulation-eligible only when it clears configured minimum quality, baseline noninferiority, acceptable error/latency and lower modeled cost. Unlabeled free-text quality remains subject to human review, not speculative LLM-judge grades.
+
+## Routing and shadow simulation
+
 ```text
-for each task:
-  if sensitive OR high_risk OR insufficient_labels: blocked/review
-  else cluster deterministically using type/template/schema/length
-  benchmark cheaper candidates against baseline on same labeled cases
-  eligible only if quality >= task_threshold AND
-    latency, error, fallback and total cost are acceptable
+if sensitive / high risk / blocked -> HUMAN_REVIEW
+else if insufficient labels / low confidence -> PREMIUM
+else if category unsupported -> PREMIUM
+else if quality/cost benchmark not approved -> PREMIUM
+else -> CHEAPER_MODEL_IN_SIMULATION
 ```
 
-**Savings**
-```text
-baseline = sum(actual request tokens * baseline price)
-optimized = sum(candidate tokens * candidate price)
-  + fallback requests + retries + hosting + platform/integration fees
-net_savings = baseline - optimized
-cost_per_success = full_cost / successfully_completed_tasks
-```
+A simulated cheap attempt is counted as a cost even if it fails. Expected fallback premium calls are added, not substituted. The shadow engine stores routing decisions and projected totals. It never processes production requests.
 
-Use prices effective for the evaluation period. Never treat a failed/invalid result as a successful task. Cached input and provider-specific price tiers must be explicit.
+## Cost evidence levels
 
-**Shadow mode**
-```text
-production request -> original provider (unchanged production answer)
-                   -> optional consented shadow evaluator (isolated)
-compare, record simulated route/cost/quality -> report
-```
+- **Assumed:** prices and volume supplied by a human.
+- **Estimated:** mathematical scenario or extrapolation from a sample.
+- **Simulated:** offline per-trace routing policy projection.
+- **Verified:** requires real-world controlled production monitoring; **not supported in this MVP**.
 
-## Security boundaries
+## Development conventions
 
-Customer content is absent from Phase 1. In future: explicit per-provider consent, redaction prior to storage, secret encryption, minimum retention, export/deletion, action audit, privacy agreements and a legal review of training rights.
+Business logic lives under `src/lib/pipeline`, tenant guards under `src/lib/tenant.ts`, API endpoints under `src/app/api`, UI under `src/components`. Workflows should avoid direct model API calls from pages, never store provider keys in database fields, use typed input validation and log only sanitized metadata.

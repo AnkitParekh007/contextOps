@@ -1,57 +1,112 @@
-# API Contract — Phase 1
+# ContextOps AI — HTTP API
 
-Base path: `/api`. Responses are JSON. Authentication uses an HTTP-only cookie. Browser POST requests are same-origin checked. Errors return `{ "error": "message" }`.
+All endpoints return JSON unless marked as a download. Browser POST and DELETE calls require a matching `APP_URL` Origin. Authentication uses a signed, HTTP-only session cookie. Token-only unauthenticated APIs are intentionally not available.
 
-| Method | Route | Auth | Description |
+## Identity and tenancy
+
+| Method | Path | Access | Notes |
 | --- | --- | --- | --- |
-| GET | /health | Public | Check DB readiness, 200 or 503 |
-| POST | /auth/register | Public | Create user and session |
-| POST | /auth/login | Public | Authenticate user |
-| POST | /auth/logout | Session | Clear cookie |
-| GET | /me | Session | Current public user identity |
-| GET | /organizations | Session | List only member organizations and their workspaces |
-| POST | /organizations | Session | Create organization, owner membership and first workspace atomically |
-| GET | /organizations/:organizationId/workspaces | Member | List workspaces |
-| POST | /organizations/:organizationId/workspaces | Owner or admin | Create workspace and audit event |
+| POST | /api/auth/register | Public, throttled | Name, email, 12+ character password |
+| POST | /api/auth/login | Public, throttled | Return user and set cookie |
+| POST | /api/auth/logout | Session | Clear cookie |
+| GET | /api/me | Session | User profile |
+| GET / POST | /api/organizations | Member / signed-in | List only member organizations or create company and first workspace |
+| GET / POST | /api/organizations/:orgId/workspaces | Member / owner-admin | List or create workspace |
+| DELETE | /api/workspaces/:workspaceId | Owner/admin | JSON `{"confirmation":"DELETE <exact workspace name>"}` |
+| GET | /api/health | Public | DB readiness |
 
-## Example registration
+## Workflow (tenant-scoped)
 
-```http
-POST /api/auth/register
-Content-Type: application/json
+Use `/api/workspaces/:workspaceId/:action`. Every operation verifies workspace membership. Owner and admin are required for policy changes, pricing assumptions, settings and connector creation; analyst can run evaluations/analysis, viewer can only read.
 
-{"name":"Taylor Lee","email":"taylor@example.com","password":"A_StrongPassphrase123"}
-```
+| Method | Action | Request / response |
+| --- | --- | --- |
+| GET | overview | Observed trace metrics, modeled sample costs if priced, latest simulation and evaluation |
+| GET | traces | Paginated sanitized traces (`page`, `size`) |
+| GET | template | Download CSV header template |
+| POST | preview | Multipart `file`, `authorized=true`, optional `mapping` JSON; returns redacted preview/columns/issues |
+| POST | imports | Multipart `file`, `authorized=true`, `retentionAcknowledged=true`, optional `mapping` JSON; returns 202 queue ID |
+| GET | imports | Recent jobs and progress (without content payload) |
+| GET | /api/imports/:jobId | Job owner/member | Status, processed, rejected, issues |
+| POST | demo | Generate 500 synthetic traces with idempotent external IDs |
+| GET | analysis | Task groupings and distribution |
+| POST | analysis | Recompute deterministic classification and human-review queue |
+| POST | calculator | Configurable prices, tokens, volume, success/fallback, fees; returns numerical scenario |
+| GET/POST | evaluations | List labeled evaluation runs / run candidate benchmark |
+| GET/POST | policies | List simulation policies / create policy tied to passing evaluation |
+| GET/POST | shadow | List offline simulations / simulate an approved policy |
+| GET/POST | reports | List report headers / create Markdown assessment from latest shadow run |
+| GET | /api/reports/:reportId/download | Member | Download Markdown, audit export |
+| GET/POST | reviews | Review queue / record human disposition |
+| GET | audit | Recent tenant workspace audit events |
+| GET/POST | settings | Quality thresholds / save per-task threshold |
+| POST | pricing | Save assumed model price snapshot |
+| POST | connections | Add synthetic MOCK connector only |
 
-Status 201, response `{ "user": { "id", "name", "email" } }`. Login takes email/password, 200 on success, 401 on invalid credentials.
+## Example API bodies
 
-## Example organization onboarding
-
-```http
-POST /api/organizations
-Content-Type: application/json
-
+**Calculator**
+```json
 {
-  "companyName": "Northwind Logistics",
-  "workspace": {
-    "name": "Support Ticket Triage",
-    "useCase": "SUPPORT_CLASSIFICATION",
-    "provider": "ANTHROPIC",
-    "modelName": "Claude Sonnet"
-  }
+  "monthlyVolume": 100000,
+  "averageInputTokens": 3000,
+  "averageOutputTokens": 500,
+  "baselineInputPrice": 2,
+  "baselineOutputPrice": 10,
+  "candidateInputPrice": 0.1,
+  "candidateOutputPrice": 0.5,
+  "eligiblePercent": 70,
+  "fallbackPercent": 10,
+  "infrastructureMonthly": 0,
+  "platformMonthly": 0,
+  "baselineSuccessRate": 0.99,
+  "optimizedSuccessRate": 0.98
 }
 ```
 
-Returns status 201 and `{ "organization": { ...organization, "workspace": { ... } } }`.
+**Evaluation (local mock)**
+```json
+{
+  "provider": "MOCK",
+  "model": "mock-efficient",
+  "maximumSamples": 30,
+  "minimumQuality": 0.95,
+  "baselineInputPrice": 2,
+  "baselineOutputPrice": 10,
+  "candidateInputPrice": 0.1,
+  "candidateOutputPrice": 0.5,
+  "consentExternal": false
+}
+```
 
-Use cases: `SUPPORT_CLASSIFICATION`, `DOCUMENT_EXTRACTION`, `POLICY_QA`, `SALES_FOLLOW_UP`, `LEAD_QUALIFICATION`, `OTHER`.
+External evaluations explicitly require `consentExternal=true` and server-side credentials. They are limited to at most ten redacted labeled samples per request. Model identifiers are provided by the operator; unsupported models return a provider failure, not a fabricated quality score.
 
-Providers: `ANTHROPIC`, `OPENAI`, `GOOGLE`, `OTHER`.
+**Policy**
+```json
+{
+  "name": "Routine classification",
+  "evaluationRunId": "<known evaluation id>",
+  "minConfidence": 0.9,
+  "minQuality": 0.95,
+  "maxLatencyMs": 10000,
+  "maxFallbackRate": 0.2,
+  "retryLimit": 1,
+  "requireApprovalForSensitive": true
+}
+```
 
-## Authorization and error codes
+Status `APPROVED_FOR_SIMULATION` never means approval for production routing.
 
-401 means no valid session; 403 means present but insufficient role or invalid Origin; 404 avoids revealing whether an unauthorized organization exists; 409 duplicate email; 422 schema validation failed; 429 rate limited; 500 server error; 503 dependency unavailable.
+## Standard error codes
 
-## Planned endpoints
+- 401 no session
+- 403 denied Origin, permissions or consent
+- 404 workspace, report or import absent from the accessible tenant
+- 409 duplicate account
+- 413 oversized file
+- 422 invalid schema, insufficient labels or policy quality gate
+- 429 rate limit
+- 500 unexpected server error
+- 503 database unavailable
 
-`POST /api/workspaces/:id/traces/import`, `GET /api/imports/:id`, `POST /api/workspaces/:id/analysis`, `POST /api/evaluations`, `POST /api/routing-policies`, `POST /api/shadow-runs`, `GET /api/reports/:id`. These routes **do not exist in Phase 1**. All must enforce membership, authorization and tenant scoping.
+Output processing statuses are `QUEUED`, `PROCESSING`, `RETRY`, `COMPLETED`, `FAILED`. Errors do not intentionally echo raw uploaded content.
