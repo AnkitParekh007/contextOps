@@ -6,6 +6,10 @@ The public-facing **React + Vite** marketing site lives in [`marketing/`](market
 
 **https://ankitparekh007.github.io/contextOps/**
 
+**Try the guided synthetic demo:** https://ankitparekh007.github.io/contextOps/demo/
+
+Phase 10 demo is a separate static, browser-only walkthrough: 500 deterministic support tickets, MOCK label evaluation, quality-gated offline simulation and downloadable scenario report. It makes no backend/model calls and must never be mistaken for a hosted authenticated app or customer evidence. See [Phase 10 delivery and Railway deployment gates](docs/PHASE10.md).
+
 It covers the nine implemented controlled-pilot capabilities, supported use cases, a six-step workflow, privacy limitations, and an interactive **scenario** calculator. The static site is deployed through [the GitHub Pages workflow](.github/workflows/marketing-pages.yml) on updates to `main`. The Next.js application and APIs remain separate; GitHub Pages cannot host server-side login, PostgreSQL, or model evaluations.
 
 For local marketing development, run `cd marketing && npm install && npm run dev`. See [marketing/README.md](marketing/README.md). If GitHub Pages is not enabled, choose **Settings → Pages → Source: GitHub Actions**, and rerun the workflow.

@@ -1,6 +1,25 @@
 import { PrismaClient } from "@prisma/client";
+import Redis from "ioredis";
 const db=new PrismaClient();
 let running=true;
+const heartbeat=new Redis(process.env.REDIS_URL ?? "redis://localhost:6379",{
+  lazyConnect:true,maxRetriesPerRequest:1,connectTimeout:1500,retryStrategy:()=>null,
+});
+let heartbeatWarning=false;
+let heartbeatRunning=false;
+async function markWorkerHealthy(){
+  if(heartbeatRunning)return;
+  heartbeatRunning=true;
+  try{
+    if(heartbeat.status==="wait"||heartbeat.status==="end")await heartbeat.connect();
+    await heartbeat.set("contextops:worker:heartbeat",String(Date.now()),"EX",30);
+    heartbeatWarning=false;
+  }catch{
+    if(!heartbeatWarning)console.warn("Worker heartbeat unavailable; readiness remains unhealthy");
+    heartbeatWarning=true;
+  }finally{heartbeatRunning=false;}
+}
+
 process.on("SIGINT",()=>{running=false;});
 process.on("SIGTERM",()=>{running=false;});
 async function workOne(){
@@ -55,10 +74,17 @@ async function workOne(){
   return true;
 }
 async function main(){
+  await markWorkerHealthy();
+  const timer=setInterval(()=>{void markWorkerHealthy();},10000);
+  try{
   while(running){
     try{const worked=await workOne();if(!worked)await new Promise(r=>setTimeout(r,1500));}
     catch(error){console.error("Worker loop error",error);await new Promise(r=>setTimeout(r,2500));}
   }
-  await db.$disconnect();
+  }finally{
+    clearInterval(timer);
+    heartbeat.disconnect();
+    await db.$disconnect();
+  }
 }
 main().catch(e=>{console.error(e);process.exit(1);});

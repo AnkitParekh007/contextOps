@@ -23,7 +23,7 @@ async function req(path,{method="GET",body,multipart=false}={}){
   return json;
 }
 const user=await req("/api/auth/register",{method:"POST",body:{
-  name:"Pilot Tester",email:"pilot-"+nonce+"@example.test",password:"Safe_Pilot_Password123",
+  name:"Pilot Tester",email:"pilot-"+nonce+"@example.test",password:"Safe_Pilot_Password123",inviteCode:process.env.PILOT_INVITE_CODE,
 }});
 assert.ok(user.user.id);
 const org=await req("/api/organizations",{method:"POST",body:{

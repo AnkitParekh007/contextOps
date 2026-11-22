@@ -1,0 +1,40 @@
+name: "Controlled pilot interest"
+description: "Public, non-sensitive indication of interest in a ContextOps AI controlled pilot."
+title: "[Pilot interest] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for exploring ContextOps AI. **This GitHub issue is public.**
+        Never paste customer traces, proprietary prompts, company invoices, API keys,
+        employee information, contract terms, personal contact details or other confidential material.
+        Submitting this form does not initiate data processing or reserve a pilot slot.
+  - type: dropdown
+    id: workflow
+    attributes:
+      label: Which kind of workflow would you like to evaluate?
+      options:
+        - Support ticket classification
+        - Structured document extraction
+        - Lead qualification
+        - Internal knowledge Q&A (requires manual quality review)
+        - Another repeatable AI workflow
+    validations:
+      required: true
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Which stage are you at?
+      options:
+        - Exploring the browser demo
+        - Planning a synthetic proof of concept
+        - Interested in an authorized, private controlled pilot
+    validations:
+      required: true
+  - type: checkboxes
+    id: public-note
+    attributes:
+      label: Privacy acknowledgment
+      options:
+        - label: I understand this is a public GitHub issue and will not share confidential information here.
+          required: true

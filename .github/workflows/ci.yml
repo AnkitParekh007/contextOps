@@ -30,6 +30,7 @@ jobs:
       REDIS_URL: redis://localhost:6379
       AUTH_SECRET: ci_only_change_me_32_character_secret_00001
       APP_URL: http://localhost:3000
+      PILOT_INVITE_CODE: ci_only_pilot_invitation_code_nonproduction_00001
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -58,4 +59,9 @@ jobs:
       - name: Full pilot smoke test (import worker, analysis, evaluation, shadow, report)
         run: |
           npm run worker > /tmp/contextops-worker.log 2>&1 &
+          for i in $(seq 1 25); do
+            if curl -fsS http://localhost:3000/api/ready >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://localhost:3000/api/ready || (cat /tmp/contextops-worker.log && exit 1)
           node scripts/pilot-smoke.mjs || (cat /tmp/contextops-app.log && cat /tmp/contextops-worker.log && exit 1)
