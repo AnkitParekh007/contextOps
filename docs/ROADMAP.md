@@ -34,3 +34,11 @@ The initial product brief defines nine engineering phases. The following status 
 6. Track measured cost per successful task, error/quality drift, latency and net savings including operating expense.
 
 No numerical reduction or guaranteed equivalence should be marketed without a verified live customer case study.
+
+## Phase 10 — Hosted Interactive Product Demo
+
+- **Static interactive browser demo + marketing integration:** Implemented in `marketing/demo/`, after GitHub Pages deployment.
+- **Browser-only quality benchmark and Markdown export:** Implemented using deterministic Northwind MOCK data. These are illustrative and not actual customer quality or savings evidence.
+- **Invite-gated app registration and DB/Redis/worker readiness:** Implemented in the Next.js backend, pending live infrastructure.
+- **Railway production services and public authenticated application:** **Not deployed until external infrastructure, secrets, and live synthetic acceptance checks are confirmed.** Follow `docs/PHASE10.md`.
+- **Real-data pilot approval:** Unavailable, requires security/legal processing review.

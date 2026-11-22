@@ -174,6 +174,7 @@ function DemoTeaser(){
         <a href={interactiveDemo+"#report"} className="btn btn-ghost">Preview sample report <FileText size={17}/></a>
       </div>
       <span className="demo-teaser-foot"><ShieldCheck size={16}/> Fixed synthetic dataset · No production routing · Zero verified savings claims</span>
+      <a className="demo-pilot-link" href={githubUrl+"/issues/new?template=pilot-request.yml"} target="_blank" rel="noreferrer">Request a controlled pilot (public GitHub issue) <ArrowUpRight size={15}/></a>
     </div>
     <div className="demo-teaser-terminal" aria-hidden="true"><div className="demo-teaser-chrome"><span/><span/><span/><b>DEMO / WORKFLOW</b></div>
       <div className="demo-teaser-line"><span>01</span><CheckCircle2 size={15}/><strong>Loaded</strong><em>500 sample traces</em></div>
