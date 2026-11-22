@@ -19,7 +19,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "postinstall": "prisma generate",
-    "smoke:acceptance": "node scripts/phase14-acceptance.mjs"
+    "smoke:acceptance": "node scripts/phase14-acceptance.mjs",
+    "verify:acceptance": "node scripts/verify-phase14-evidence.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

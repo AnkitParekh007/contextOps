@@ -68,3 +68,15 @@ The following must still be performed **and evidenced independently**:
 
 See [Phase 13](PHASE13.md), [Phase 12](PHASE12.md), and
 [the acceptance matrix](ACCEPTANCE.md).
+
+## Evidence contract verification
+
+After the synthetic runner, CI executes
+`node scripts/verify-phase14-evidence.mjs`. It enforces an explicit
+schema/key allowlist, all ten required test names, PASS-only check results,
+no customer or verified-savings claims, and absence of typical credentials,
+identifiers and account fields. It emits an additional Markdown summary.
+Both JSON and Markdown are retained as 14-day GitHub CI artifacts.
+
+The verifier only audits artifact **content**, not actual infrastructure
+or independently collected provider and customer evidence.
