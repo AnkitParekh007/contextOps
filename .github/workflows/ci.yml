@@ -81,6 +81,8 @@ jobs:
           node scripts/hosted-acceptance.mjs || (cat /tmp/contextops-app.log && cat /tmp/contextops-worker.log && exit 1)
           node scripts/pilot-smoke.mjs || (cat /tmp/contextops-app.log && cat /tmp/contextops-worker.log && exit 1)
       - name: Phase 17 synthetic operational readiness probe
+        env:
+          PILOT_BASE_URL: http://localhost:3000
         run: npm run smoke:operations
       - name: Verify Phase 17 report remains explicitly unapproved
         run: |
