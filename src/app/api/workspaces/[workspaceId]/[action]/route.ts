@@ -116,7 +116,7 @@ export async function GET(request:NextRequest,{params}:Context){
       organizationId:org,OR:[{subjectId:workspaceId},{metadata:{path:["workspaceId"],equals:workspaceId}},
         {subjectType:{in:["ImportJob","EvaluationRun","RoutingPolicy","ShadowModeRun","SavingsReport","HumanReview"]}}]},
       orderBy:{createdAt:"desc"},take:100,select:{id:true,action:true,subjectType:true,subjectId:true,createdAt:true,metadata:true}})});
-    if(action==="settings")return json({workspace:{name:access.workspace.name},role:access.membership.role,thresholds:await db.qualityThreshold.findMany({where:{workspaceId,organizationId:org}}),
+    if(action==="settings")return json({workspace:{name:access.workspace.name,modelName:access.workspace.modelName},role:access.membership.role,thresholds:await db.qualityThreshold.findMany({where:{workspaceId,organizationId:org}}),
       pricing:await db.costSnapshot.findMany({where:{workspaceId,organizationId:org},
         orderBy:{createdAt:"desc"},take:10}),
       connections:await db.workflowConnection.findMany({where:{workspaceId,organizationId:org},

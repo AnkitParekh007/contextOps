@@ -310,7 +310,7 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
           <NumberField label="Baseline output $ per million tokens" value={baselineOut} onChange={setBaselineOut}/>
         </div>
         {button("Save baseline pricing",()=>{const ws=(data?.workspace??{}) as Json;
-          void invoke("pricing",{provider:"BASELINE",model:String(ws.name?"":"" )||"missing",priceInputPerMillion:baselineIn,priceOutputPerMillion:baselineOut});},false)}
+          void invoke("pricing",{provider:"BASELINE",model:String(ws.modelName??"unknown"),priceInputPerMillion:baselineIn,priceOutputPerMillion:baselineOut});},false)}
         <p className="text-xs text-slate-500">A pricing record is also saved automatically when you complete a model evaluation.</p>
       </Card>
       <Card className="space-y-5 p-7"><h2 className="text-lg font-bold">Quality threshold</h2>
