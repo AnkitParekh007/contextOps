@@ -9,6 +9,7 @@ export const benchmarkProtocolSchema=z.object({
   windowEnd:z.string().datetime(),
   holdoutPercent:z.number().int().min(20).max(50).default(30),
   minimumStratumSupport:z.number().int().min(2).max(100).default(3),
+  minimumClassRecall:z.number().min(.5).max(1).default(.7),
   maxExternalSpendUsd:z.number().min(.01).max(25).default(1),
   dataProvenance:z.enum(["SYNTHETIC","AUTHORIZED_SANITIZED"]).default("SYNTHETIC"),
   authorizationReference:z.string().trim().max(120).optional(),
@@ -43,7 +44,7 @@ export function splitBenchmarkHoldout<T extends SampleUnit>(rows:readonly T[],
   const holdout:T[]=[],calibration:T[]=[];
   for(const [group,items] of [...groups.entries()].sort(([a],[b])=>a.localeCompare(b))){
     const ranking=drawLabeledSample(items,{mode:"STRATIFIED",
-      seed:seed+"-holdout",size:items.length}).selected;
+      seed:sha(seed+"-holdout").slice(0,32),size:items.length}).selected;
     const count=items.length>=2?Math.min(items.length-1,
       Math.max(1,Math.round(items.length*percentage/100))):0;
     if(!group||!ranking.length)continue;
