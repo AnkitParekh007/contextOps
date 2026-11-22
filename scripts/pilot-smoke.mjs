@@ -82,10 +82,16 @@ assert.equal(analyzed.analyzed,501);
 assert.ok(analyzed.eligible>0);
 const evalRes=await req(api+"/evaluations",{method:"POST",body:{
   provider:"MOCK",model:"mock-efficient",maximumSamples:30,minimumQuality:.9,
+  samplingMode:"CHRONOLOGICAL",samplingSeed:"ci-phase12",
   baselineInputPrice:2,baselineOutputPrice:10,candidateInputPrice:.1,candidateOutputPrice:.5,
 }});
 assert.ok(evalRes.run.qualityScore>=.9,JSON.stringify(evalRes));
 assert.equal(evalRes.run.details.canRecommend,true);
+assert.equal(evalRes.run.details.sampling.mode,"CHRONOLOGICAL");
+assert.equal(evalRes.run.details.sampling.selectedCount,30);
+assert.ok(evalRes.run.details.sampling.fingerprint.length===64);
+assert.ok(evalRes.run.details.candidateAccuracyLower95<evalRes.run.qualityScore);
+assert.ok(evalRes.run.details.candidateCostPerSuccess>0);
 const policy=await req(api+"/policies",{method:"POST",body:{
   name:"Pilot safe policy",evaluationRunId:evalRes.run.id,
   minConfidence:.9,minQuality:.9,maxLatencyMs:10000,maxFallbackRate:.2,
@@ -103,6 +109,18 @@ const download=await fetch(base+"/api/reports/"+report.report.id+"/download",{
 assert.equal(download.status,200);
 const markdown=await download.text();
 assert.ok(markdown.includes("SIMULATION ONLY"));
+const stratifiedInput={
+  provider:"MOCK",model:"mock-efficient",maximumSamples:30,minimumQuality:.9,
+  samplingMode:"STRATIFIED",samplingSeed:"phase12-determinism",
+  baselineInputPrice:2,baselineOutputPrice:10,candidateInputPrice:.1,candidateOutputPrice:.5,
+};
+const strat1=await req(api+"/evaluations",{method:"POST",body:stratifiedInput});
+const strat2=await req(api+"/evaluations",{method:"POST",body:stratifiedInput});
+assert.equal(strat1.run.details.sampling.fingerprint,strat2.run.details.sampling.fingerprint,
+  "Seeded stratified selection must be reproducible");
+assert.ok(strat1.run.details.sampling.coveredStrata>=3,
+  "Benchmark should cover multiple labeled groups");
+assert.equal(strat1.run.details.sampling.mode,"STRATIFIED");
 const actions=await req(api+"/audit");
 assert.ok(actions.events.length>0);
 const wrongOrg=await req("/api/organizations",{method:"POST",body:{

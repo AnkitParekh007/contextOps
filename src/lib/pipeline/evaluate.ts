@@ -3,12 +3,17 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { infer, type ProviderKey } from "./providers";
 import { macroF1, compareOutput, type MetricExample } from "./scoring";
+import {drawLabeledSample} from "./sampling";
+import {wilson95,percentile,costPerSuccessfulTask,perLabelMetrics} from "./statistics";
+import {createHash} from "node:crypto";
 
 export const evaluationRequestSchema=z.object({
   provider:z.enum(["MOCK","ANTHROPIC","OPENAI"]),
   model:z.string().trim().min(2).max(120),
   consentExternal:z.boolean().default(false),
   maximumSamples:z.number().int().min(5).max(50).default(30),
+  samplingMode:z.enum(["STRATIFIED","CHRONOLOGICAL"]).default("STRATIFIED"),
+  samplingSeed:z.string().trim().regex(/^[A-Za-z0-9_-]{1,64}$/).default("pilot-v1"),
   minimumQuality:z.number().min(0.5).max(1).default(0.95),
   maxQualityDrop:z.number().min(0).max(0.2).default(0.05),
   candidateInputPrice:z.number().min(0).max(100000),
@@ -27,11 +32,29 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
   const cappedSamples=params.provider==="MOCK"?params.maximumSamples:Math.min(params.maximumSamples,10);
   const labels=await db.taskClassification.findMany({where:{workspaceId:workspace.id,organizationId:workspace.organizationId,
     suitability:"ELIGIBLE",category:{in:["ROUTINE_CLASSIFICATION","STRUCTURED_EXTRACTION"]}},
-    take:cappedSamples,orderBy:{createdAt:"asc"}});
+    take:10000,orderBy:{createdAt:"asc"}});
   if(labels.length<5)throw Error("Need at least 5 labeled, eligible traces. Run analysis first.");
-  const candidates=await db.executionTrace.findMany({where:{id:{in:labels.map(l=>l.traceId)},workspaceId:workspace.id}});
-  const byId=new Map(candidates.map(t=>[t.id,t]));
-  const allowed=labels.map(l=>({classification:l,trace:byId.get(l.traceId)!})).filter(x=>x.trace);
+  const candidates=await db.executionTrace.findMany({where:{
+    id:{in:labels.map(l=>l.traceId)},workspaceId:workspace.id,organizationId:workspace.organizationId,
+  }});
+  const byId=new Map(candidates.map(trace=>[trace.id,trace]));
+  const available=labels.map(classification=>({
+    classification,trace:byId.get(classification.traceId),
+  })).filter((record):record is {classification:(typeof labels)[number];trace:(typeof candidates)[number]}=>
+    Boolean(record.trace&&(record.trace.humanLabel??record.trace.expectedOutput)&&record.trace.inputText));
+  if(available.length<5)throw Error("Need at least 5 eligible traces with ground-truth labels.");
+  const strata=available.map(item=>{
+    const label=item.trace.humanLabel??item.trace.expectedOutput??"";
+    const value=item.classification.category==="ROUTINE_CLASSIFICATION"?
+      createHash("sha256").update(label.trim().toLowerCase()).digest("hex").slice(0,12):
+      "structured";
+    return {id:item.trace.id,stratum:item.classification.category+":"+value,...item};
+  });
+  const selection=drawLabeledSample(strata,{
+    mode:params.samplingMode,seed:params.samplingSeed,size:cappedSamples,
+  });
+  const allowed=selection.selected;
+  if(allowed.length<5)throw Error("Not enough labeled records in sampled test set.");
   const labelSet=[...new Set(allowed.map(x=>x.trace.humanLabel??x.trace.expectedOutput??""))];
   const run=await db.evaluationRun.create({data:{
     workspaceId:workspace.id,organizationId:workspace.organizationId,status:"RUNNING",
@@ -75,23 +98,55 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
       reason:"Candidate model output failed evaluation against labeled expected result",
     }))});
   }
-  const quality=scored.filter(s=>s.valid).length/allowed.length,errorRate=errors/allowed.length;
-  const avgLatency=totalLatency/allowed.length;
+  const correct=scored.filter(s=>s.valid).length;
+  const quality=correct/allowed.length,errorRate=errors/allowed.length;
+  const successfulLatencies=results.filter(row=>!row.error).map(row=>row.latencyMs);
+  const avgLatency=successfulLatencies.length?totalLatency/successfulLatencies.length:null;
+  const confidence=wilson95(correct,allowed.length);
   const baselineAccuracy=baselineCorrect/allowed.length;
   const baselineCost=allowed.reduce((sum,{trace})=>sum+
     (trace.inputTokens*params.baselineInputPrice+trace.outputTokens*params.baselineOutputPrice)/1000000,0);
+  const rawGate=quality>=enforcedQuality&&
+    quality>=baselineAccuracy-params.maxQualityDrop&&
+    errorRate<=.05&&avgLatency!==null&&avgLatency<=10000&&
+    totalCost<baselineCost&&baselineCost>0;
+  const externalStatisticalGate=allowed.length>=30&&confidence.lower>=enforcedQuality&&
+    selection.metadata.coveredStrata===selection.metadata.totalStrata;
+  // External pilot comparisons remain limited to 10 calls, so they cannot
+  // pass a 30+ sample confidence gate and cannot authorize a routing policy.
+  const canRecommend=rawGate&&(params.provider==="MOCK"||externalStatisticalGate);
+  const syntheticOnly=allowed.every(({trace})=>trace.metadata!==null&&
+    typeof trace.metadata==="object"&&!Array.isArray(trace.metadata)&&
+    "synthetic" in trace.metadata&&trace.metadata.synthetic===true);
+  const routineScores=scored.filter((_,index)=>
+    allowed[index].classification.category==="ROUTINE_CLASSIFICATION");
+  const labelScores=perLabelMetrics(routineScores).map(row=>({
+    ...row,label:"group-"+createHash("sha256").update(row.label).digest("hex").slice(0,10),
+  }));
   const details={
     labelCount:allowed.length,baselineAccuracy,candidateMacroF1:macroF1(scored),
+    candidateAccuracyLower95:confidence.lower,candidateAccuracyUpper95:confidence.upper,
+    candidateCostPerSuccess:costPerSuccessfulTask(totalCost,correct),
+    baselineCostPerSuccess:costPerSuccessfulTask(baselineCost,baselineCorrect),
+    candidateMedianLatencyMs:percentile(successfulLatencies,.5),
+    candidateP95LatencyMs:percentile(successfulLatencies,.95),
+    providerErrorCount:errors,perLabelMetrics:labelScores,
+    perLabelScope:"routine_classification_only",
+    structuredExtractionCount:allowed.filter(item=>
+      item.classification.category==="STRUCTURED_EXTRACTION").length,
+    sampling:selection.metadata,provenance:syntheticOnly?"synthetic_seed":"unverified_or_mixed",
+    statisticalValidation:params.provider!=="MOCK"&&externalStatisticalGate,
+    statisticalCaution:"Wilson score assumes independent Bernoulli outcomes. Deterministic stratification and small samples are diagnostic, not proof of representative production quality.",
     minimumQuality:enforcedQuality,maxQualityDrop:params.maxQualityDrop,baselineCost,candidateCost:totalCost,
     candidateInputPrice:params.candidateInputPrice,candidateOutputPrice:params.candidateOutputPrice,
     baselineInputPrice:params.baselineInputPrice,baselineOutputPrice:params.baselineOutputPrice,
     fallbackRate:1-quality,manualReviewRequired:invalid.length>0,provider:params.provider,
-    canRecommend:quality>=enforcedQuality&&quality>=baselineAccuracy-params.maxQualityDrop&&errorRate<=0.05&&avgLatency<=10000&&totalCost<baselineCost&&baselineCost>0,
+    canRecommend,rawQualityGate:rawGate,
     source:"labeled_test_set",externalConsent:params.consentExternal,
   };
   await db.evaluationDataset.create({data:{organizationId:workspace.organizationId,workspaceId:workspace.id,
     name:"Labeled pilot benchmark",taskType:"ROUTINE_CLASSIFICATION_OR_EXTRACTION",
-    provenance:"customer_supplied_or_synthetic_labels",count:allowed.length}});
+    provenance:syntheticOnly?"synthetic_seed":"unverified_or_mixed",count:allowed.length}});
   await db.costSnapshot.createMany({data:[
     {organizationId:workspace.organizationId,workspaceId:workspace.id,provider:"BASELINE",
       model:workspace.modelName,priceInputPerMillion:params.baselineInputPrice,
@@ -106,6 +161,7 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
   }});
   await db.auditLog.create({data:{organizationId:workspace.organizationId,actorId,
     subjectType:"EvaluationRun",subjectId:run.id,action:"EVALUATION_COMPLETED",
-    metadata:{provider:params.provider,model:params.model,samples:allowed.length,externalConsent:params.consentExternal}}});
+    metadata:{provider:params.provider,model:params.model,samples:allowed.length,externalConsent:params.consentExternal,
+      samplingMode:params.samplingMode,samplingFingerprint:selection.metadata.fingerprint}}});
   return {id:run.id,qualityScore:quality,errorRate,averageLatencyMs:avgLatency,estimatedCost:totalCost,details};
 }
