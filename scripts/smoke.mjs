@@ -87,7 +87,7 @@ assert.equal((await call("/api/me", { cookie: cookieA })).status, 401,
   "Reusing the original pre-logout JWT must not revive a revoked server session");
 
 const loginBad = await call("/api/auth/login", { method: "POST",
-  body: { email: "owner-" + nonce + "@example.test", password: "not-the-password" } });
+  body: { email: outsiderEmail, password: "not-the-password" } });
 assert.equal(loginBad.status, 401);
 const login = await call("/api/auth/login", { method: "POST",
   body: { email: "owner-" + nonce + "@example.test", password } });

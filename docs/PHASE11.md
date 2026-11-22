@@ -47,3 +47,26 @@ This proves the current schema and CI fixture data can be dumped and restored. I
 - Document data retention/deletion policy including database snapshots, logs and provider copies.
 
 This increment is not an authorization to accept confidential, regulated, or unredacted customer traces.
+
+## Phase 11 completion increment (identity and lifecycle)
+
+The following engineering changes were added after the first phase increment:
+
+- **Email ownership verification** in hosted production. New users must click a hashed, 60-minute one-use link before login; preexisting unverified accounts must verify before accessing the app.
+- **Password recovery** using hashed, 15-minute single-use reset links. Resetting a password revokes all existing sessions but **never bypasses MFA**.
+- **Transactional mail integration** using the verified Resend REST API. Configure `RESEND_API_KEY`, `EMAIL_FROM` and an HTTPS `APP_URL`. CI uses a tightly gated local-only synthetic mail capture. Hosted registration fails closed when no approved email service is configured. The external email service, sender domain, provider terms, deliverability and production dispatch require **live verification**.
+- **Authenticator MFA (TOTP)** with AES-256-GCM encrypted secrets, one-use hashed recovery codes, code-step replay prevention and password + factor confirmation to disable. Configure a separate `MFA_ENCRYPTION_KEY` (32 cryptographically random bytes, hex-encoded). Enrollment shows recovery codes only once.
+- **Operator-safe automated lifecycle**: hourly worker cleanup of expired/revoked auth sessions, challenges and consumed recovery codes; optional 7–90 day **whole-workspace** expiry scheduled by OWNER/ADMIN with explicit confirmation. The worker deletes a scheduled workspace and its cascade-scoped domain data, retaining a minimal audit event.
+- **Security tests**: RFC 6238 TOTP vector, challenge reuse rejection, email-first login policy, one-time recovery codes, password reset invalidating all sessions, retention policy authorization and domain cascade in CI.
+
+### Important limitations and external blockers
+
+- Automated retention applies only to **app DB rows**. It does not erase backups, exports, connected providers or upstream records, which need separately contracted retention and tested deletion.
+- MFA is **optional** in this codebase. Mandatory organization-wide MFA, SSO and enterprise identity providers are not implemented. Do not claim an external penetration test or formal certification.
+- Railway managed services still have not been provisioned, so **real managed backup/restore, monitoring, emergency response exercise and live hosted acceptance remain open**.
+- External customer data onboarding needs independent DPA/data-processing authorization, privacy classification, a human-approved redaction/DLP review and, where applicable, data-residency controls. Synthetic CI and application tests do not count as those approvals.
+- This increment is **engineering complete**, not a statement that enterprise security and the production launch are approved.
+
+### Upgrade
+
+Run `prisma migrate deploy` before starting the upgraded application and worker. Set and secure `RESEND_API_KEY`, `EMAIL_FROM`, `MFA_ENCRYPTION_KEY`, and `PILOT_INVITE_CODE`. Existing legacy users without verified email need to confirm their address through `/check-email`; do not enable external data intake until the complete hosted pilot acceptance is signed.

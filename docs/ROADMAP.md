@@ -51,3 +51,7 @@ No numerical reduction or guaranteed equivalence should be marketed without a ve
 - Security response headers and a synthetic PostgreSQL dump/isolated-restore drill in CI.
 
 **Not complete:** live Railway deployment, real managed backup/restore, session retention scheduling, email verification/recovery, MFA/SSO, DLP, independent pen test and security/privacy approval for customer data. Follow `docs/PHASE11.md`.
+
+### Phase 11 identity and lifecycle engineering increment
+
+Added hosted email verification and password recovery scaffolding (sender configuration required), optional TOTP MFA with encrypted secrets and one-use recovery codes, replay-resistant login, and an explicitly scheduled whole-workspace retention/expiry process. These changes are subject to branch CI acceptance. **Operational signoff remains blocked** by live hosting, managed backup/restore, independent security assessment, customer DPA and privacy review. Next engineering phase: **Phase 12 — representative model benchmarking and measurable cost-per-success analysis**.

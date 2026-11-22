@@ -49,3 +49,7 @@ Trace imports are handled locally by the API/worker. Optional provider compariso
 ## Phase 11 security increment
 
 The authenticated pilot now checks database-backed session revocation on every request, supports password-confirmed sign-out from all devices, and applies baseline security headers. An ephemeral CI backup/restore drill is implemented. These controls do **not** constitute enterprise or regulated-data certification. See [Phase 11 evidence and remaining gates](PHASE11.md).
+
+## Phase 11 identity and expiry follow-up
+
+Hosted registration requires an out-of-band email confirmation, the password recovery flow uses single-use links and revokes all sessions, and users can opt into authenticator MFA with encrypted secrets and one-time recovery codes. Expiry of an entire workspace is OWNER/ADMIN opt-in only; default is no scheduled deletion. Auth/session token maintenance runs from the worker. Production mail delivery, key rotation, backup expiry, SSO, formal security testing and legal approvals remain external gates. See [Phase 11](PHASE11.md).

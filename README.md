@@ -131,3 +131,7 @@ See [LICENSE](LICENSE).
 ## Phase 11 security increment
 
 The authenticated pilot now provides DB-backed revocable sessions, a password-confirmed "sign out every device" screen, baseline HTTP security headers, and an ephemeral PostgreSQL backup/restore regression in CI. Railway service provisioning and enterprise security controls remain separate gates. See [Phase 11 delivery and limitations](docs/PHASE11.md).
+
+### Current identity and retention engineering
+
+Hosted verification and account recovery require an approved transactional email provider. Authenticator MFA and explicit whole-workspace expiry are implemented as pilot controls. These features are not a substitute for enterprise identity, managed backup retention, privacy review or security certification. See [Phase 11](docs/PHASE11.md).
