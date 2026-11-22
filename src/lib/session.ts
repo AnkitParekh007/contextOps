@@ -2,6 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import { db } from "@/lib/db";
+import {emailRequired} from "@/lib/auth/email";
 
 const COOKIE_NAME = "contextops_session";
 const DURATION_SECONDS = 60 * 60 * 24 * 7;
@@ -73,5 +74,10 @@ export async function getCurrentUser() {
       user: { select: { id: true, name: true, email: true } },
     },
   });
-  return active?.user ?? null;
+  if(!active?.user)return null;
+  if(emailRequired()){
+    const verified=await db.user.findUnique({where:{id:ids.userId},select:{emailVerifiedAt:true}});
+    if(!verified?.emailVerifiedAt)return null;
+  }
+  return active.user;
 }

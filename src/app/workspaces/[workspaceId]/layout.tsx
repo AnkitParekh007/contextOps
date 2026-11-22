@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { BarChart3, BrainCircuit, Calculator, ClipboardCheck, Database, FileText, Gauge,
-  GitBranch, Layers3, ListChecks, ScrollText, Settings2, ShieldCheck, Upload, FlaskConical } from "lucide-react";
+  GitBranch, Layers3, ScrollText, Settings2, ShieldCheck, Upload, FlaskConical } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { LogoutButton } from "@/components/logout-button";
 import { workspaceAccess } from "@/lib/tenant";

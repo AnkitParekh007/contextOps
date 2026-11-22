@@ -9,6 +9,10 @@ services:
       REDIS_URL: ${REDIS_URL:?Configure private Redis}
       AUTH_SECRET: ${AUTH_SECRET:?Configure random secret}
       APP_URL: ${APP_URL:?Configure HTTPS public origin}
+      PILOT_INVITE_CODE: ${PILOT_INVITE_CODE:?Configure private invite code}
+      RESEND_API_KEY: ${RESEND_API_KEY:?Configure verified transactional-email provider}
+      EMAIL_FROM: ${EMAIL_FROM:?Configure verified sender address}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?Configure 64-hex-digit 32-byte encryption key}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ports:

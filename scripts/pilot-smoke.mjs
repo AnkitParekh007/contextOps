@@ -3,7 +3,8 @@
  * This test never sends data to third-party AI providers.
  */
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { randomUUID,createHash } from "node:crypto";
+import {readFile} from "node:fs/promises";
 const base=process.env.APP_URL??"http://localhost:3000";
 const nonce=randomUUID().slice(0,10);
 let cookie="";
@@ -25,12 +26,31 @@ async function req(path,{method="GET",body,multipart=false}={}){
 const user=await req("/api/auth/register",{method:"POST",body:{
   name:"Pilot Tester",email:"pilot-"+nonce+"@example.test",password:"Safe_Pilot_Password123",inviteCode:process.env.PILOT_INVITE_CODE,
 }});
-assert.ok(user.user.id);
+assert.equal(user.verificationRequired,true);
+const ciEmail="pilot-"+nonce+"@example.test";
+const id=createHash("sha256").update(ciEmail).digest("hex");
+const confirmation=JSON.parse(await readFile("/tmp/contextops-ci-mail/"+id+".json","utf8"));
+const verify=await req("/api/auth/verify-email",{method:"POST",body:{
+  token:new URL(confirmation.url).searchParams.get("token"),
+}});
+assert.equal(verify.ok,true);
+const login=await req("/api/auth/login",{method:"POST",body:{
+  email:ciEmail,password:"Safe_Pilot_Password123",
+}});
+assert.ok(login.user.id);
 const org=await req("/api/organizations",{method:"POST",body:{
   companyName:"Synthetic Pilot "+nonce,
   workspace:{name:"Support Triage",useCase:"SUPPORT_CLASSIFICATION",provider:"OTHER",modelName:"mock-premium"},
 }});
 const workspaceId=org.organization.workspace.id,api="/api/workspaces/"+workspaceId;
+const expires=await req(api+"/retention",{method:"POST",body:{
+  mode:"schedule",days:7,confirmation:"EXPIRE Support Triage",
+}});
+assert.ok(expires.retentionUntil);
+const canceled=await req(api+"/retention",{method:"POST",body:{
+  mode:"cancel",confirmation:"CANCEL EXPIRY Support Triage",
+}});
+assert.equal(canceled.retentionUntil,null);
 let form=new FormData();
 form.set("authorized","true");form.set("retentionAcknowledged","true");
 const email="private-"+nonce+"@example.com";

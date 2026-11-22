@@ -7,14 +7,15 @@ import {getCurrentUser} from "@/lib/session";
 import {db} from "@/lib/db";
 import {Card} from "@/components/ui/card";
 import {RevokeSessionsForm} from "@/components/revoke-sessions-form";
+import {MfaSettings} from "@/components/mfa-settings";
 
 export const metadata:Metadata={title:"Account security"};
 export default async function SecurityPage(){
   const user=await getCurrentUser();
   if(!user)redirect("/login");
-  const active=await db.authSession.count({
+  const [account,active]=await Promise.all([db.user.findUnique({where:{id:user.id},select:{mfaEnabledAt:true}}),db.authSession.count({
     where:{userId:user.id,revokedAt:null,expiresAt:{gt:new Date()}},
-  });
+  })]);
   return <main className="min-h-screen bg-canvas">
     <div className="mx-auto max-w-4xl px-5 py-10">
       <div className="flex items-center justify-between"><Brand href="/dashboard"/>
@@ -34,8 +35,9 @@ export default async function SecurityPage(){
               If you suspect unauthorized access, revoke all sessions immediately.</p></div></div>
         <RevokeSessionsForm/>
       </Card>
+      <MfaSettings initiallyEnabled={Boolean(account?.mfaEnabledAt)}/>
       <p className="mt-6 text-xs leading-relaxed text-slate-500">
-        This pilot does not yet implement email recovery, MFA or enterprise SSO.
+        This controlled pilot supports authenticator MFA and email recovery when an approved mail provider is configured, but does not include enterprise SSO or an independent security certification.
         Avoid uploading confidential or regulated data.</p>
     </div>
   </main>;

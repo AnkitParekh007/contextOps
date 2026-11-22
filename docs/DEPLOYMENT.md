@@ -56,3 +56,9 @@ Apply the `AuthSession` migration before accepting traffic from an upgraded web 
 For operator recovery, use managed encrypted provider backups and restore into an isolated environment first. The CI-only script `scripts/verify-backup-restore.sh` runs with GitHub Actions' synthetic PostgreSQL container and must **never be aimed at a production DB**. It does not replace an operational backup service.
 
 See [Phase 11 plan](PHASE11.md) for the authorization and recovery acceptance checklist.
+
+### Phase 11 email/MFA/retention requirements
+
+After migration, configure a private Resend API key with a verified sender domain, a separate 64-hex-character MFA encryption key and the private pilot invitation secret. `APP_URL` must match HTTPS exactly. Production registration returns a service-unavailable error when an email sender is not configured, and logins to unverified accounts fail closed. Previously registered users must verify via `/check-email`.
+
+The worker is required for periodic cleanup of expired session and email token rows, and any explicitly scheduled whole-workspace expiry. Add a worker health alert, backup expiry policy, off-site encrypted backups and a **restored-to-isolation** acceptance drill before accepting real customer traces. Do not reuse the CI synthetic mail-capture mode on a live host.
