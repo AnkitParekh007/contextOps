@@ -12,7 +12,7 @@ export function validatePinnedHost(origin,registered,approvedDomain,ci=false){
   const target=validateTarget(origin,registered,ci);
   if(ci && origin==="http://localhost:3000")return target;
   if(!approvedDomain||typeof approvedDomain!=="string"||
-    !/^[a-z0-9.-]+$/.test(approvedDomain)||
+    !approvedDomain.includes(".")||!/^[a-z0-9.-]+$/.test(approvedDomain)||
     approvedDomain.includes("..")||approvedDomain==="localhost")
     throw new Error("HOST_NOT_APPROVED");
   const hostname=new URL(origin).hostname.toLowerCase();
