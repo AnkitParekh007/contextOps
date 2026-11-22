@@ -47,6 +47,8 @@ jobs:
         run: npm run typecheck
       - name: Unit tests
         run: npm test
+      - name: Phase 18 offline deployment preflight tests
+        run: npm run test:preflight
       - name: Lint
         run: npm run lint
       - name: Build
@@ -80,6 +82,13 @@ jobs:
           curl -fsS http://localhost:3000/api/ready || (cat /tmp/contextops-worker.log && exit 1)
           node scripts/hosted-acceptance.mjs || (cat /tmp/contextops-app.log && cat /tmp/contextops-worker.log && exit 1)
           node scripts/pilot-smoke.mjs || (cat /tmp/contextops-app.log && cat /tmp/contextops-worker.log && exit 1)
+      - name: Phase 17 synthetic operational readiness probe
+        env:
+          PILOT_BASE_URL: http://localhost:3000
+        run: npm run smoke:operations
+      - name: Verify Phase 17 report remains explicitly unapproved
+        run: |
+          node -e 'const fs=require("node:fs"); const r=JSON.parse(fs.readFileSync("artifacts/phase17-operational-readiness.json","utf8")); if(r.status!=="PASS"||r.scope!=="synthetic_ci_only"||r.productionApproved!==false||r.customerDataApproved!==false||r.verifiedSavings!==false||r.backupsVerified!==false||r.emailVerified!==false||r.alertsVerified!==false)process.exit(1);'
       - name: Phase 14 synthetic tenant and benchmark acceptance
         env:
           PHASE14_OUTPUT_DIR: artifacts
@@ -104,5 +113,6 @@ jobs:
             artifacts/phase14-synthetic-acceptance.json
             artifacts/phase14-synthetic-acceptance.md
             artifacts/phase15-pilot-readiness.json
+            artifacts/phase17-operational-readiness.json
           retention-days: 14
           if-no-files-found: warn
