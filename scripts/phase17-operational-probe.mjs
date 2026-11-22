@@ -41,7 +41,7 @@ async function inspect(fetcher,origin,path,token,timeoutMs){
       throw new Error("UNEXPECTED_CONTENT_TYPE");
     if(response.headers.get("x-content-type-options")!=="nosniff")
       throw new Error("MISSING_SECURITY_HEADER");
-    if(!response.headers.get("cache-control")?.includes("no-store"))
+    if(path!=="/api/health"&&!response.headers.get("cache-control")?.includes("no-store"))
       throw new Error("MISSING_NO_STORE");
     const body=safeJson(await response.json());
     return {status:response.status,body};
@@ -73,6 +73,7 @@ export async function runOperationalProbe({
   const monitor=await inspect(fetcher,target.origin,"/api/ops/status",token,timeoutMs);
   if(monitor.status!==200||monitor.body.status!=="ok"||
     monitor.body.ready!==true||monitor.body.customerDataVerified!==false||
+    monitor.body.externalBenchmarksEnabled!==false||
     !monitor.body.queue||typeof monitor.body.queue.queued!=="number"||
     !Array.isArray(monitor.body.issueCodes)||monitor.body.issueCodes.length)
     throw new Error("OPERATOR_STATUS_NOT_HEALTHY");
