@@ -139,3 +139,8 @@ Hosted verification and account recovery require an approved transactional email
 ## Phase 12 — Reproducible Benchmarks
 
 Evaluate with seeded label-stratified samples, uncertainty diagnostics and modeled cost per successful task. This is offline evidence only, not verified customer production results. Read docs/PHASE12.md.
+
+ 
+### Benchmark governance (Phase 12)
+
+In an authenticated workspace, open **Benchmark governance** to preregister and freeze a labeled holdout, inspect evidence fingerprints, run offline fallback stress scenarios and record self-reported cost aggregates. External model execution remains opt-in and disabled by default. See [Phase 12](docs/PHASE12.md).

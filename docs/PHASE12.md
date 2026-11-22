@@ -22,3 +22,24 @@
 6. Independent human approval prior to any non-simulated routing, which is not implemented here.
 
 No current result establishes verified customer savings or guaranteed production quality.
+ 
+## Phase 12 engineering completion increment
+
+**Implemented in the new benchmark-governance feature branch:**
+- Owner/admin preregistration of a bounded UTC data window, class-support floor, maximum preflight model spend, per-class recall gate, provenance and operator-attested authorization reference.
+- Explicit two-stage DRAFT → FROZEN transition. Freeze records a source-content fingerprint and deterministic, disjoint calibration/holdout split. Altered source labels, model input or cohort composition invalidates reuse.
+- Re-running the same provider/model on a previously used frozen holdout is rejected. A separate protocol is required. This reduces accidental test-set overfitting but does not certify blinded, independent ground truth.
+- Synthetic and operator-attested data are never mixed in the same frozen cohort.
+- Optional external-provider execution is **disabled by default** and requires ALL of: operator flag `ENABLE_EXTERNAL_BENCHMARKS=true`, existing provider API key, explicit per-run processing consent, frozen protocol marked `AUTHORIZED_SANITIZED`, authorization reference, positive user-entered token prices and conservative preflight budget. At most ten remote calls remain permitted. The preflight is NOT a mathematically guaranteed billing cap because providers may bill failed calls, changed rates, unexpected tokens, or retries.
+- Aggregate invoice reconciliation stores only billing-period totals, successful-task count, additional overhead and a SHA-256 internal invoice-reference digest. The evidence level is `SELF_REPORTED_UNVERIFIED`; sample-level costs and period totals are NOT comparable without independent scope reconciliation.
+- Offline fault scenarios explicitly charge model retries, premium fallback and fixed infrastructure overhead; no live model routing or provider calls occur.
+- Evaluation reports compare quality with the previous same-model run and flag a notable decline **as a diagnostic only**, not as proof of statistical drift or causality.
+- Responsive, tenant-scoped benchmark governance UI linked from the authenticated workspace navigation.
+
+**Still requires external evidence rather than more code:**
+- A verified, independently adjudicated representative business dataset and written permission to process it.
+- Operator-approved cloud spending and public/managed infrastructure, private secrets, rate-card verification and invoice evidence.
+- An independent security assessment, DPA/data residency review, production managed backup restoration and operator acceptance signoff.
+- Real-world confidence/statistical validation and future approved production traffic-shift design. No such traffic switch is offered.
+
+**Phase 12 code completion is not the same as an approved live customer pilot.**
