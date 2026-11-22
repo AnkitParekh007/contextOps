@@ -42,7 +42,15 @@ export function BenchmarkConsole({workspaceId}:{workspaceId:string}){
     setProtocols(first.protocols??[]);setReconciliations(first.reconciliations??[]);
     setRuns(second.runs??[]);
   },[root,workspaceId]);
-  useEffect(()=>{void refresh().catch(e=>setError(e instanceof Error?e.message:"Request failed"));},[refresh]);
+  useEffect(()=>{
+    let canceled=false;
+    const load=async()=>{
+      try{await refresh();}
+      catch(e){if(!canceled)setError(e instanceof Error?e.message:"Request failed");}
+    };
+    void load();
+    return ()=>{canceled=true;};
+  },[refresh]);
   async function submit(mode:string,body:Json){
     setBusy(true);setError("");setMessage("");
     try{
