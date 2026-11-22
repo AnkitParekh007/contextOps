@@ -23,6 +23,7 @@ model User {
   updatedAt    DateTime     @updatedAt
   memberships  Membership[]
   auditLogs    AuditLog[]
+  authSessions AuthSession[]
 }
 
 model Organization {
@@ -386,4 +387,17 @@ model HumanReview {
   workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
   
   @@index([organizationId, workspaceId])
+}
+
+/** Persistent, revocable browser sessions. A signed JWT alone is never authorization. */
+model AuthSession {
+  id        String    @id @default(cuid())
+  userId    String
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
 }
