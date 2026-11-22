@@ -254,6 +254,8 @@ CREATE TABLE "ShadowModeRun" (
   "projectedCost" DOUBLE PRECISION NOT NULL,
   "simulatedSavings" DOUBLE PRECISION NOT NULL,
   "projectedQuality" DOUBLE PRECISION,
+  "fallbackRate" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "expectedFallbacks" DOUBLE PRECISION NOT NULL DEFAULT 0,
   "decisions" JSONB NOT NULL,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "ShadowModeRun_pkey" PRIMARY KEY ("id")

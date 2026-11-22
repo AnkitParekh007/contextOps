@@ -217,7 +217,8 @@ export async function POST(request:NextRequest,{params}:Context){
       if(!run)return apiError("Run an evaluation first",422);
       const details=(run.details??{}) as Record<string,unknown>;
       const pass=details.canRecommend===true&&(run.qualityScore??0)>=input.minQuality&&
-        (run.errorRate??1)<=input.maxFallbackRate&&(run.averageLatencyMs??Infinity)<=input.maxLatencyMs;
+        (run.errorRate??1)<=input.circuitBreakerErrorRate&&
+        (1-(run.qualityScore??0))<=input.maxFallbackRate&&(run.averageLatencyMs??Infinity)<=input.maxLatencyMs;
       const policy=await db.routingPolicy.create({data:{
         workspaceId,organizationId:org,name:input.name,evaluationRunId:run.id,
         status:pass?"APPROVED_FOR_SIMULATION":"DRAFT",
@@ -253,12 +254,13 @@ export async function POST(request:NextRequest,{params}:Context){
       const fallbackRate=Number(details.fallbackRate??0);
       let baselineCost=0,projectedCost=0,routed=0,escalated=0,blocked=0;
       const decisions=traces.map(trace=>{
-        const c=byId.get(trace.id),route=routeDecision(c,config,true);
+        const c=byId.get(trace.id);
         const baseline=traceCost(trace.inputTokens,trace.outputTokens,baselineIn,baselineOut);
         const candidate=traceCost(trace.inputTokens,trace.outputTokens,candidateIn,candidateOut);
+        const route=routeDecision(c,config,true,candidate);
         baselineCost+=baseline;
         let projected=baseline;
-        if(route==="CHEAP"){routed++;projected=candidate+fallbackRate*baseline;}
+        if(route==="CHEAP"){routed++;projected=candidate*(1+fallbackRate*config.retryLimit)+fallbackRate*baseline;}
         else if(route==="REVIEW"){blocked++;}
         else{escalated++;}
         projectedCost+=projected;
@@ -267,7 +269,8 @@ export async function POST(request:NextRequest,{params}:Context){
       const saved=baselineCost-projectedCost;
       const shadow=await db.shadowModeRun.create({data:{organizationId:org,workspaceId,policyId:policy.id,
         evaluationRunId:run.id,total:traces.length,routed,escalated,blocked,baselineCost,
-        projectedCost,simulatedSavings:saved,projectedQuality:run.qualityScore,decisions}});
+        projectedCost,simulatedSavings:saved,projectedQuality:run.qualityScore,
+        fallbackRate,expectedFallbacks:routed*fallbackRate,decisions}});
       await audit(org,user.id,"SHADOW_SIMULATED","ShadowModeRun",shadow.id,{workspaceId,
         total:traces.length,routed,blocked,simulatedSavings:saved});
       return json({run:{...shadow,decisions:decisions.slice(0,20)},note:"Offline simulation; no production routing occurred"},201);

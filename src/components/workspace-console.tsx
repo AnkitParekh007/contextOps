@@ -280,9 +280,9 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
         })}
         <Notice>Shadow results extrapolate quality and fallback frequency from an evaluation sample. They are simulations, not live A/B measurements or realized savings.</Notice>
       </Card>
-      <Table headers={["Date","Traces","Cheaper route","Premium","Human review","Simulated savings"]} rows={items("runs").map(r=>[
+      <Table headers={["Date","Traces","Cheaper route","Premium","Human review","Expected fallbacks","Simulated savings"]} rows={items("runs").map(r=>[
         new Date(String(r.createdAt)).toLocaleDateString(),num(r.total),num(r.routed),num(r.escalated),num(r.blocked),
-        money(r.simulatedSavings)])}/>
+        num(Math.round(Number(r.expectedFallbacks??0))),money(r.simulatedSavings)])}/>
     </>}
     {section==="reports"&&<>
       <Card className="space-y-5 p-7"><h2 className="text-lg font-bold">Generate a client-ready assessment</h2>
@@ -381,6 +381,7 @@ function CalculatorPanel({invoke,busy,result,monthlyVolume,setMonthlyVolume,base
   infrastructure:number;setInfrastructure:(n:number)=>void;
 }){
   const [inTokens,setInTokens]=useState(3000),[outTokens,setOutTokens]=useState(500);
+  const [retryLimit,setRetryLimit]=useState(1);
   const [baselineSuccess,setBaselineSuccess]=useState(.99),[optimizedSuccess,setOptimizedSuccess]=useState(.98);
   const scenario=(result?.scenario??{}) as Json;
   return <>
@@ -389,7 +390,7 @@ function CalculatorPanel({invoke,busy,result,monthlyVolume,setMonthlyVolume,base
         monthlyVolume,averageInputTokens:inTokens,averageOutputTokens:outTokens,
         baselineInputPrice:baselineIn,baselineOutputPrice:baselineOut,
         candidateInputPrice:candidateIn,candidateOutputPrice:candidateOut,
-        eligiblePercent:eligible,fallbackPercent:fallback,platformMonthly:platform,
+        eligiblePercent:eligible,fallbackPercent:fallback,retryLimit,platformMonthly:platform,
         infrastructureMonthly:infrastructure,baselineSuccessRate:baselineSuccess,
         optimizedSuccessRate:optimizedSuccess,
       });}} className="space-y-6">
@@ -403,6 +404,7 @@ function CalculatorPanel({invoke,busy,result,monthlyVolume,setMonthlyVolume,base
           <NumberField label="Candidate output $ / 1M" value={candidateOut} onChange={setCandidateOut}/>
           <NumberField label="Eligible tasks %" value={eligible} onChange={setEligible} max={100}/>
           <NumberField label="Fallback rate %" value={fallback} onChange={setFallback} max={100}/>
+          <NumberField label="Candidate retries before fallback (0–1)" value={retryLimit} onChange={setRetryLimit} max={1} step={1}/>
           <NumberField label="Monthly platform fee ($)" value={platform} onChange={setPlatform}/>
           <NumberField label="Monthly infrastructure ($)" value={infrastructure} onChange={setInfrastructure}/>
           <NumberField label="Baseline success rate (0–1)" value={baselineSuccess} onChange={setBaselineSuccess} min={.001} max={1} step={.01}/>

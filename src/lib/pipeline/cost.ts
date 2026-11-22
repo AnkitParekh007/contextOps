@@ -9,6 +9,7 @@ export const costInputSchema=z.object({
   candidateOutputPrice:z.number().min(0).max(100000),
   eligiblePercent:z.number().min(0).max(100),
   fallbackPercent:z.number().min(0).max(100),
+  retryLimit:z.number().int().min(0).max(1).default(0),
   infrastructureMonthly:z.number().min(0).max(10000000).default(0),
   platformMonthly:z.number().min(0).max(10000000).default(0),
   baselineSuccessRate:z.number().min(0.001).max(1).default(1),
@@ -24,11 +25,11 @@ export function calculateSavings(input:CostInput){
   const current=volume*perBase;
   const candidateRequests=eligible;
   const premiumRequests=volume-eligible+fallback;
-  const optimizedModel=candidateRequests*perCheap+premiumRequests*perBase;
+  const optimizedModel=(candidateRequests+fallback*v.retryLimit)*perCheap+premiumRequests*perBase;
   const overhead=v.infrastructureMonthly+v.platformMonthly;
   const optimizedTotal=optimizedModel+overhead;
   const net=current-optimizedTotal;
-  const marginalSavedPerTask=(perBase-perCheap)-(v.fallbackPercent/100*perBase);
+  const marginalSavedPerTask=(perBase-perCheap)-(v.fallbackPercent/100*(perBase+v.retryLimit*perCheap));
   const breakEvenTasks=marginalSavedPerTask>0&&v.eligiblePercent>0?
     Math.ceil(overhead/(v.eligiblePercent/100*marginalSavedPerTask)):null;
   return {
@@ -37,7 +38,7 @@ export function calculateSavings(input:CostInput){
     savingsPercent:current>0?net/current*100:0,annualizedNetSavings:net*12,
     baselineCostPerSuccessfulTask:current/(volume*v.baselineSuccessRate),
     optimizedCostPerSuccessfulTask:optimizedTotal/(volume*v.optimizedSuccessRate),
-    candidateRequests,premiumRequests,fallbackRequests:fallback,breakEvenMonthlyVolume:breakEvenTasks,
+    candidateRequests:candidateRequests+fallback*v.retryLimit,premiumRequests,fallbackRequests:fallback,breakEvenMonthlyVolume:breakEvenTasks,
     note:"Scenario only; savings are estimated, not realized or verified.",
   };
 }

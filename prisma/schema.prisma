@@ -349,6 +349,8 @@ model ShadowModeRun {
     projectedCost Float
     simulatedSavings Float
     projectedQuality Float?
+    fallbackRate Float @default(0)
+    expectedFallbacks Float @default(0)
     decisions Json
   createdAt DateTime @default(now())
   workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
