@@ -7,6 +7,8 @@
     "dev": "next dev --hostname 0.0.0.0",
     "build": "prisma generate && next build",
     "start": "next start --hostname 0.0.0.0",
+    "worker": "tsx scripts/worker.ts",
+    "smoke:pilot": "node scripts/pilot-smoke.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

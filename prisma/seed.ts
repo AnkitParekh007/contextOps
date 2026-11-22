@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { registerSchema } from "../src/lib/validation";
+import { demoTraces } from "../src/lib/pipeline/demo";
 
 const db = new PrismaClient();
 async function main() {
@@ -26,13 +27,16 @@ async function main() {
     where: { userId_organizationId: { userId: user.id, organizationId: org.id } },
     update: { role: "OWNER" }, create: { userId: user.id, organizationId: org.id, role: "OWNER" },
   });
-  await db.workspace.upsert({
+  const workspace = await db.workspace.upsert({
     where: { organizationId_slug: { organizationId: org.id, slug: "support-ticket-triage" } },
     update: {},
     create: { organizationId: org.id, slug: "support-ticket-triage", name: "Support Ticket Triage",
       useCase: "SUPPORT_CLASSIFICATION", provider: "ANTHROPIC", modelName: "Claude Sonnet" },
   });
-  console.log("Synthetic Northwind workspace created. Trace data will arrive in Phase 2.");
+  const generated = await db.executionTrace.createMany({data:demoTraces().map(t=>({
+    ...t,organizationId:org.id,workspaceId:workspace.id,
+  })),skipDuplicates:true});
+  console.log("Northwind synthetic demo ready. Added",generated.count,"traces (500 total expected).");
 }
 main().catch(error => { console.error(error); process.exitCode = 1; })
   .finally(async () => { await db.$disconnect(); });

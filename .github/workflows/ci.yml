@@ -55,3 +55,7 @@ jobs:
             sleep 2
           done
           node scripts/smoke.mjs || (cat /tmp/contextops-app.log && exit 1)
+      - name: Full pilot smoke test (import worker, analysis, evaluation, shadow, report)
+        run: |
+          npm run worker > /tmp/contextops-worker.log 2>&1 &
+          node scripts/pilot-smoke.mjs || (cat /tmp/contextops-app.log && cat /tmp/contextops-worker.log && exit 1)

@@ -31,11 +31,24 @@ services:
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env}
       APP_URL: ${APP_URL:-http://localhost:3000}
       NODE_ENV: development
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
     command: sh -c "npx prisma migrate deploy && npm run dev"
+  worker:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://contextops:contextops_local@db:5432/contextops?schema=public
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: development
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    command: sh -c "npx prisma migrate deploy && npm run worker"
+    restart: unless-stopped
 volumes:
   postgres_data:
