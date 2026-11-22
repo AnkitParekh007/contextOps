@@ -18,6 +18,8 @@
     "verify:staging": "node scripts/phase19-staging-evidence.mjs",
     "test:release-gates": "node --test scripts/phase20-22-release-gate.test.mjs",
     "verify:pilot": "node scripts/phase20-22-release-gate.mjs",
+    "test:phase23": "node --test scripts/phase23-hosted-probe.test.mjs",
+    "probe:phase23": "node scripts/phase23-hosted-probe.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

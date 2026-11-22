@@ -1,0 +1,39 @@
+name: Phase 23 protected hosted read-only acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: "Exact deployed 40-character SHA, independently verified by operator"
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  hosted-read-only:
+    runs-on: ubuntu-latest
+    environment: contextops-staging
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run strictly read-only hosted acceptance
+        env:
+          APP_URL: ${{ vars.STAGING_APP_URL }}
+          PILOT_BASE_URL: ${{ vars.STAGING_APP_URL }}
+          STAGING_APPROVED_DOMAIN: ${{ vars.STAGING_APPROVED_DOMAIN }}
+          STAGING_EXPECTED_SHA: ${{ inputs.release_sha }}
+          OPS_MONITOR_TOKEN: ${{ secrets.STAGING_OPS_MONITOR_TOKEN }}
+          PHASE23_SYNTHETIC: "false"
+        run: |
+          node scripts/phase23-hosted-probe.mjs > phase23-report.json
+          node -e 'const r=require("./phase23-report.json");if(r.scope!=="private_hosted_read_only"||r.status!=="READ_ONLY_CHECKS_PASSED"||r.stagingApproved!==false||r.productionApproved!==false||r.customerDataApproved!==false)process.exit(1)'
+      - name: Upload sanitized report (not authorization)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase23-hosted-read-only
+          path: phase23-report.json
+          retention-days: 7
+          if-no-files-found: error

@@ -180,3 +180,7 @@ A fail-closed, read-only operational probe now checks HTTPS target approval, ope
 ## Phases 20–22 — Staging blueprint, security acceptance, controlled pilot gates
 
 The repository now includes a **non-provisioning** staging Compose blueprint, a hosted security/reliability acceptance checklist, and an offline pilot evidence review gate. Run `npm run test:release-gates` for synthetic safety regression tests. Use `npm run verify:pilot -- path/to/private-evidence-manifest.json` only in a trusted operator environment. Even complete input remains independent-review-required, **never** an automated staging, customer-data, spending, or production authorization. See [Phase 20](docs/PHASE20.md), [Phase 21](docs/PHASE21.md), and [Phase 22](docs/PHASE22.md).
+
+## Phase 23 — Authenticated staging deployment identity and acceptance
+
+An operator-authenticated `/api/ops/release` endpoint and strict read-only hosted probe verify the configured release SHA against an independently pinned expected SHA, restricted to an approved staging HTTPS hostname. CI runs offline adversarial checks; a separate protected, manual GitHub workflow supports real staging checks **only after external deployment approval**. The result does not independently attest build provenance or authorize customer data, production or paid provider calls. See [Phase 23](docs/PHASE23.md).

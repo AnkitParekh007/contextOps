@@ -53,6 +53,8 @@ jobs:
         run: npm run test:staging-evidence
       - name: Phases 20-22 offline staging and pilot release-gate tests
         run: npm run test:release-gates
+      - name: Phase 23 hosted acceptance trust-boundary tests
+        run: npm run test:phase23
       - name: Lint
         run: npm run lint
       - name: Build
