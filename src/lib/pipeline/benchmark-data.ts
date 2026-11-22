@@ -22,6 +22,10 @@ export async function loadBenchmarkPool(workspaceId:string,organizationId:string
     const synthetic=Boolean(trace.metadata&&typeof trace.metadata==="object"&&
       !Array.isArray(trace.metadata)&&"synthetic" in trace.metadata&&
       trace.metadata.synthetic===true);
+    // Keep synthetic demos and operator-attested real cohorts disjoint.
+    // Mixing their labels would give misleading coverage and accuracy.
+    if(config.dataProvenance==="SYNTHETIC"&&!synthetic)return [];
+    if(config.dataProvenance==="AUTHORIZED_SANITIZED"&&synthetic)return [];
     const stratum="routine:"+createHash("sha256").update(label.toLowerCase()).digest("hex").slice(0,16);
     return [{id:trace.id,stratum,label,inputText:trace.inputText,
       timestamp:trace.timestamp,synthetic,classification,trace}];
