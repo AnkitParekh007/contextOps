@@ -82,6 +82,13 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
   const [fallback,setFallback]=useState(10),[eligible,setEligible]=useState(70);
   const [platform,setPlatform]=useState(0),[infrastructure,setInfrastructure]=useState(0);
   const [reviewId,setReviewId]=useState("");
+  const [policyName,setPolicyName]=useState("Default quality-gated policy");
+  const [minConfidence,setMinConfidence]=useState(.9);
+  const [policyFallback,setPolicyFallback]=useState(.2);
+  const [policyErrors,setPolicyErrors]=useState(.05);
+  const [policyLatency,setPolicyLatency]=useState(10000);
+  const [policyCostCeiling,setPolicyCostCeiling]=useState(10000);
+  const [policyRetry,setPolicyRetry]=useState(1);
   async function invoke(action:string,body:Json|FormData={}){
     setBusy(true);setMessage("");setResult(null);
     try{
@@ -256,14 +263,26 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
     {section==="policies"&&<>
       <Card className="space-y-5 p-7"><h2 className="text-lg font-bold">Create a simulation-only policy</h2>
         <p className="text-sm text-slate-500">A policy must be tied to a completed model evaluation. Failed quality or cost checks produce a non-routable draft.</p>
+        <label className="block text-sm font-semibold">Policy name
+          <Input className="mt-2" value={policyName} onChange={e=>setPolicyName(e.target.value)}/></label>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <NumberField label="Minimum routing confidence (0.5–1)" value={minConfidence} onChange={setMinConfidence} min={.5} max={1} step={.01}/>
+          <NumberField label="Minimum candidate quality (0.5–1)" value={quality} onChange={setQuality} min={.5} max={1} step={.01}/>
+          <NumberField label="Max fallback rate (0–1)" value={policyFallback} onChange={setPolicyFallback} min={0} max={1} step={.01}/>
+          <NumberField label="Circuit breaker error rate (0–1)" value={policyErrors} onChange={setPolicyErrors} min={0} max={1} step={.01}/>
+          <NumberField label="Maximum latency (ms)" value={policyLatency} onChange={setPolicyLatency} min={1} max={120000} step={1}/>
+          <NumberField label="Maximum candidate cost/task ($)" value={policyCostCeiling} onChange={setPolicyCostCeiling} min={0} max={10000}/>
+          <NumberField label="Retry attempts (0–1)" value={policyRetry} onChange={setPolicyRetry} min={0} max={1} step={1}/>
+        </div>
         <div className="flex flex-wrap gap-3"><Link href={workspacesLink+"evaluations"} className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold">Review evaluations</Link>
-          {button("Create policy from latest evaluation",async ()=>{
+          {button("Create quality-gated policy",async ()=>{
             const runs=await fetchJson(api+"/evaluations");const first=runs.runs?.[0];
             if(!first){setMessage("Please run an evaluation first");return;}
-            await invoke("policies",{name:"Default quality-gated policy",evaluationRunId:first.id,
-              minQuality:.95,minConfidence:.9,maxLatencyMs:10000,maxFallbackRate:.2,
-              retryLimit:1,requireApprovalForSensitive:true});
-          })}</div>
+            await invoke("policies",{name:policyName,evaluationRunId:first.id,
+              minQuality:quality,minConfidence,maxLatencyMs:policyLatency,maxFallbackRate:policyFallback,
+              circuitBreakerErrorRate:policyErrors,maxCostPerTaskUsd:policyCostCeiling,
+              retryLimit:policyRetry,requireApprovalForSensitive:true});
+          },!policyName.trim())}</div>
         <Notice>No live model switching is implemented. Approved policies are authorized for offline simulation only.</Notice>
       </Card>
       <Table headers={["Policy","Status","Evaluation","Version","Created"]} rows={items("policies").map(p=>[
