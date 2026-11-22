@@ -376,6 +376,15 @@ export async function POST(request:NextRequest,{params}:Context){
     // Expected domain/parse errors are safe to display; provider HTTP errors never echo upstream payload.
     if(error instanceof SyntaxError)return apiError("Invalid uploaded data",422);
     const msg=message(error);
+    // Explicit domain status codes: policy denial is never an internal server error.
+    if(msg==="This model has already used the frozen holdout; create a new protocol"||
+      msg==="Frozen benchmark cohort changed: create and freeze a new protocol")
+      return apiError("Frozen benchmark cohort cannot be reused or has changed",409);
+    if(msg==="External benchmark execution disabled by operator"||
+      msg==="External benchmark requires documented authorized sanitized provenance")
+      return apiError("External benchmarking is not approved for this workspace",403);
+    if(msg==="Frozen tenant-scoped protocol required")
+      return apiError("A frozen tenant-scoped benchmark protocol is required",422);
     if(/^(Need at least|Upload traces|No traces|Only quality|Run an evaluation|Run shadow|Consent required|External provider|Unsupported provider|Sensitive trace|CSV needs|Invalid JSONL|Use a |Maximum |Unterminated CSV|Malformed CSV|JSON upload|Invalid column mapping)/.test(msg))
       return apiError(msg,422);
     return handleApiError(error);

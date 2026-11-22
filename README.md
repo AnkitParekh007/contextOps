@@ -148,3 +148,11 @@ In an authenticated workspace, open **Benchmark governance** to preregister and 
 ## Phase 13 — Hosted pilot operational readiness
 
 The production worker image now packages its shared runtime source. The application provides a private aggregate `/api/ops/status` endpoint and read-only HTTPS health acceptance tooling. Managed hosting is **not** activated by these changes. See [Phase 13 runbook](docs/PHASE13.md).
+
+## Phase 14 — Synthetic pilot acceptance evidence
+
+`npm run smoke:acceptance` runs a guarded localhost-only, dual-tenant
+synthetic API acceptance test and generates a sanitized manifest for CI.
+The workflow uploads this manifest for operator review but never equates
+synthetic pass status with customer-data or production approval.
+See [Phase 14](docs/PHASE14.md).

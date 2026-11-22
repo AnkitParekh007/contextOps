@@ -119,9 +119,12 @@ export async function POST(request:NextRequest,{params}:Context){
         id:input.runId,organizationId,workspaceId,status:"COMPLETED",
       }});
       if(!run)return apiError("Completed tenant-scoped evaluation required",422);
+      // Pass only numeric aggregates. The request also contains identifiers,
+      // timestamps and an attestation boolean; those must never enter math.
       const result=reconcileAggregate({
-        ...input,billedTasks:input.billableTasks,modeledSampleCostUsd:run.estimatedCost??0,
-        sampleSize:run.sampleSize,
+        billedTotalUsd:input.billedTotalUsd,overheadUsd:input.overheadUsd,
+        billedTasks:input.billableTasks,successfulTasks:input.successfulTasks,
+        modeledSampleCostUsd:run.estimatedCost??0,sampleSize:run.sampleSize,
       });
       const invoiceReferenceHash=createHash("sha256")
         .update(input.invoiceReference).digest("hex");

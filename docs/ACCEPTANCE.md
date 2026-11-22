@@ -37,3 +37,21 @@ Run `npm run typecheck && npm test && npm run lint && npm run build`, then `npm 
 ## Phase 13 engineering acceptance
 
 CI additionally builds the production Docker image and boots the worker to catch missing runtime imports. A read-only `hosted-acceptance.mjs` probe validates health/readiness, rejects unauthorized access to `/api/ops/status`, and verifies an authorized aggregate status. In CI a synthetic localhost-only exemption permits HTTP; the real operator probe requires exact configured HTTPS origin. These checks do not replace live Railway activation, managed backup restore, security review or a staged synthetic pilot.
+
+## Phase 14 — Synthetic, governed benchmark acceptance
+
+The standalone `npm run smoke:acceptance` test runs **only** with
+`CI=true`, `APP_URL=http://localhost:3000`, external benchmarks disabled,
+and ephemeral local PostgreSQL/Redis/web/worker services. It exercises two
+independent synthetic accounts, tenant isolation, a 500-label Northwind
+workload, frozen benchmark protocol, disjoint sample provenance, duplicate-use
+rejection, external-model refusal, offline cost stress, self-reported invoice
+evidence, audit and owner-scoped cleanup. It writes a sanitized JSON manifest
+with pass/fail check names and release SHA to
+`artifacts/phase14-synthetic-acceptance.json`.
+
+GitHub Actions executes this after the existing full synthetic smoke and
+publishes only the sanitized acceptance manifest as a 14-day CI artifact.
+**It does not attest Railway hosting, an independent security audit, legal
+processing rights, real provider quality or actual verified savings.**
+See `docs/PHASE14.md`.

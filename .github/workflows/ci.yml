@@ -80,9 +80,26 @@ jobs:
           curl -fsS http://localhost:3000/api/ready || (cat /tmp/contextops-worker.log && exit 1)
           node scripts/hosted-acceptance.mjs || (cat /tmp/contextops-app.log && cat /tmp/contextops-worker.log && exit 1)
           node scripts/pilot-smoke.mjs || (cat /tmp/contextops-app.log && cat /tmp/contextops-worker.log && exit 1)
+      - name: Phase 14 synthetic tenant and benchmark acceptance
+        env:
+          PHASE14_OUTPUT_DIR: artifacts
+        run: node scripts/phase14-acceptance.mjs
+      - name: Verify sanitized Phase 14 evidence contract
+        run: node scripts/verify-phase14-evidence.mjs
       - name: Retention cascade and identity cleanup smoke
         run: npx tsx scripts/retention-smoke.ts
       - name: PostgreSQL synthetic backup and isolated restore drill
         env:
           PG_CONTAINER_ID: ${{ job.services.postgres.id }}
         run: bash scripts/verify-backup-restore.sh
+
+      - name: Upload sanitized Phase 14 acceptance manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase14-synthetic-acceptance
+          path: |
+            artifacts/phase14-synthetic-acceptance.json
+            artifacts/phase14-synthetic-acceptance.md
+          retention-days: 14
+          if-no-files-found: warn

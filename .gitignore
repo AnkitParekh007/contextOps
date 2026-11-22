@@ -6,3 +6,6 @@ node_modules/
 coverage/
 *.tsbuildinfo
 .DS_Store
+
+# Synthetic CI acceptance evidence (uploaded as a CI artifact; never commit)
+artifacts/
