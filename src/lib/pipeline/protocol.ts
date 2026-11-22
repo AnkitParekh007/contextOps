@@ -58,7 +58,7 @@ export function splitBenchmarkHoldout<T extends SampleUnit>(rows:readonly T[],
     holdoutFingerprint:sha(holdout.map(x=>x.id).sort().join("|")),
     calibrationFingerprint:sha(calibration.map(x=>x.id).sort().join("|"))};
 }
-export function validateFrozenPopulation(rows:readonly BenchmarkUnit[],config:BenchmarkProtocolConfig){
+export function validateFrozenPopulation<T extends BenchmarkUnit>(rows:readonly T[],config:BenchmarkProtocolConfig){
   if(rows.length<20)throw Error("Freeze requires at least 20 independently labeled eligible records");
   const groups=new Map<string,number>();
   for(const item of rows){

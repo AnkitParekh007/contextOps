@@ -120,7 +120,7 @@ export async function POST(request:NextRequest,{params}:Context){
       }});
       if(!run)return apiError("Completed tenant-scoped evaluation required",422);
       const result=reconcileAggregate({
-        ...input,modeledSampleCostUsd:run.estimatedCost??0,
+        ...input,billedTasks:input.billableTasks,modeledSampleCostUsd:run.estimatedCost??0,
         sampleSize:run.sampleSize,
       });
       const invoiceReferenceHash=createHash("sha256")
