@@ -38,6 +38,10 @@ form.set("file",new File([
   "external_trace_id,timestamp,task_type,input_text,model_provider,model_name,input_tokens,output_tokens,latency_ms,status,output_text,expected_output,human_label\n"+
   "csv-1,2026-11-22T00:00:00.000Z,support_ticket_classification,Please contact "+email+" about invoice 10011,MOCK,mock-premium,180,8,200,success,billing question,billing question,billing question\n",
 ],"traces.csv",{type:"text/csv"}));
+const preview=await req(api+"/preview",{method:"POST",body:form,multipart:true});
+assert.equal(preview.valid,1);
+assert.ok(Array.isArray(preview.columns));
+assert.ok(!JSON.stringify(preview).includes(email),"Raw email appeared in preview");
 const queued=await req(api+"/imports",{method:"POST",body:form,multipart:true});
 assert.equal(queued.status,"QUEUED");
 let done=null;
@@ -85,4 +89,10 @@ const wrongOrg=await req("/api/organizations",{method:"POST",body:{
   companyName:"Other Org "+nonce,workspace:{name:"Other",useCase:"OTHER",provider:"OTHER",modelName:"mock-premium"},
 }});
 assert.ok(wrongOrg.organization.id!==org.organization.id);
-console.log("Full pilot smoke PASS: asynchronous redacted import, demo, classification, model benchmark, approved policy, shadow, report, audit");
+const deleted=await req("/api/workspaces/"+workspaceId,{method:"DELETE",
+  body:{confirmation:"DELETE Support Triage"}});
+assert.equal(deleted.deleted,true);
+const orgList=await req("/api/organizations");
+const original=orgList.organizations.find(o=>o.id===org.organization.id);
+assert.equal(original.workspaces.length,0,"Deleted workspace still listed");
+console.log("Full pilot smoke PASS: redacted preview/import, demo, classification, model benchmark, approved policy, shadow, report, audit, tenant deletion");
