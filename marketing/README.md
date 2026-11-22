@@ -49,3 +49,7 @@ npm run test:e2e
 ```
 
 The GitHub Pages workflow runs these tests before uploading or publishing.
+
+## Design system
+
+The marketing site now uses a cobalt, cyan and ice-blue palette informed by Outcrowd's SQL virtualization reference, with original ContextOps components and motion graphics. See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for the color tokens, accessible themes, kinetic routing diagram and reduced-motion behavior.
