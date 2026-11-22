@@ -15,10 +15,6 @@ import type { Prisma } from "@prisma/client";
 
 type Context={params:Promise<{workspaceId:string;action:string}>};
 function json(value:unknown,status=200){return NextResponse.json(value,{status});}
-function denied(result:{error:string;status:number}|object){
-  if("error" in result)return apiError(result.error as string,result.status as number);
-  return null;
-}
 function message(error:unknown){
   return error instanceof Error?error.message:"Request failed";
 }
@@ -41,8 +37,7 @@ function datasetSummary(traces:Array<{inputTokens:number;outputTokens:number;lat
 export async function GET(request:NextRequest,{params}:Context){
   const {workspaceId,action}=await params;
   const access=await workspaceAccess(workspaceId);
-  const reject=denied(access);if(reject)return reject;
-  if(!("workspace" in access))return apiError("Not found",404);
+  if(!access.ok)return apiError(access.error,access.status);
   const org=access.workspace.organizationId;
   try{
     if(action==="template"){
@@ -118,8 +113,7 @@ export async function POST(request:NextRequest,{params}:Context){
   if(!originAllowed(request))return apiError("Invalid request origin",403);
   const {workspaceId,action}=await params;
   const access=await workspaceAccess(workspaceId,true);
-  const reject=denied(access);if(reject)return reject;
-  if(!("workspace" in access))return apiError("Not found",404);
+  if(!access.ok)return apiError(access.error,access.status);
   const {user,workspace}=access,org=workspace.organizationId;
   try{
     if(!await enforceRateLimit("workspace-"+action,user.id,action==="imports"?30:120))

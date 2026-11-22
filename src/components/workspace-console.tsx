@@ -1,10 +1,10 @@
 "use client";
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Activity, ArrowRight, CheckCircle2, CircleAlert, Download, FileDown,
-  LoaderCircle, LockKeyhole, Play, ShieldCheck, Sparkles, UploadCloud } from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleAlert, Download, FileDown,
+  LoaderCircle, Play, ShieldCheck, Sparkles, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";

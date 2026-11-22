@@ -24,7 +24,7 @@ export default async function WorkspaceLayout({children,params}:{
   children:React.ReactNode;params:Promise<{workspaceId:string}>}){
   const {workspaceId}=await params;
   const access=await workspaceAccess(workspaceId);
-  if("error" in access){if(access.status===401)redirect("/login");notFound();}
+  if(!access.ok){if(access.status===401)redirect("/login");notFound();}
   return <div className="min-h-screen bg-canvas lg:grid lg:grid-cols-[248px_1fr]">
     <aside className="border-b border-slate-200 bg-white px-5 py-6 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r">
       <Brand href="/dashboard"/>

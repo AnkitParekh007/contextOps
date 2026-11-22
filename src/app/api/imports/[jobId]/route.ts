@@ -10,7 +10,7 @@ export async function GET(_request:NextRequest,{params}:{params:Promise<{jobId:s
   }});
   if(!job)return apiError("Not found",404);
   const access=await workspaceAccess(job.workspaceId);
-  if("error" in access)return apiError(access.error,access.status);
+  if(!access.ok)return apiError(access.error,access.status);
   if(access.workspace.organizationId!==job.organizationId)return apiError("Not found",404);
   return NextResponse.json({job});
 }
