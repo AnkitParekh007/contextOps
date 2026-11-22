@@ -65,3 +65,7 @@ jobs:
           done
           curl -fsS http://localhost:3000/api/ready || (cat /tmp/contextops-worker.log && exit 1)
           node scripts/pilot-smoke.mjs || (cat /tmp/contextops-app.log && cat /tmp/contextops-worker.log && exit 1)
+      - name: PostgreSQL synthetic backup and isolated restore drill
+        env:
+          PG_CONTAINER_ID: ${{ job.services.postgres.id }}
+        run: bash scripts/verify-backup-restore.sh
