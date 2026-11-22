@@ -119,7 +119,7 @@ async function main(){
   assert.equal(first.result.run.details.benchmarkProtocolId,protocolId);
   assert.match(first.result.run.details.holdoutFingerprint,/^[a-f0-9]{64}$/);
   await call(api+"/evaluations",{method:"POST",cookie:ownerCookie,
-    body:evaluationBody,expected:500});
+    body:evaluationBody,expected:409});
   const runs=await call(api+"/evaluations",{cookie:ownerCookie});
   const duplicates=runs.result.runs.filter(r=>
     r.benchmarkProtocolId===protocolId&&r.provider==="MOCK"&&r.model==="mock-efficient");
@@ -128,7 +128,7 @@ async function main(){
   const external={...evaluationBody,provider:"OPENAI",model:"unapproved-model",
     consentExternal:true};
   await call(api+"/evaluations",{method:"POST",cookie:ownerCookie,
-    body:external,expected:500});
+    body:external,expected:403});
   const after=await call(api+"/evaluations",{cookie:ownerCookie});
   assert.ok(!after.result.runs.some(r=>r.provider==="OPENAI"));
   record("provider-denial","Synthetic cohort cannot be sent to unapproved paid provider");
