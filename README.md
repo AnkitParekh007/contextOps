@@ -176,3 +176,7 @@ A fail-closed, read-only operational probe now checks HTTPS target approval, ope
 ## Phase 19 — Hosted staging integration evidence
 
 `npm run test:staging-evidence` checks that synthetic CI reports cannot masquerade as hosted operational evidence. `npm run verify:staging -- phase17.json phase18.json <40-hex-sha>` assembles a sanitized **independent-review-required** record from privately collected read-only inputs; it never approves deployment. No hosting or provider calls are activated. See [Phase 19](docs/PHASE19.md).
+
+## Phases 20–22 — Staging blueprint, security acceptance, controlled pilot gates
+
+The repository now includes a **non-provisioning** staging Compose blueprint, a hosted security/reliability acceptance checklist, and an offline pilot evidence review gate. Run `npm run test:release-gates` for synthetic safety regression tests. Use `npm run verify:pilot -- path/to/private-evidence-manifest.json` only in a trusted operator environment. Even complete input remains independent-review-required, **never** an automated staging, customer-data, spending, or production authorization. See [Phase 20](docs/PHASE20.md), [Phase 21](docs/PHASE21.md), and [Phase 22](docs/PHASE22.md).
