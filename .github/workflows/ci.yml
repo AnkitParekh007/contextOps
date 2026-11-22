@@ -32,6 +32,8 @@ jobs:
       APP_URL: http://localhost:3000
       PILOT_INVITE_CODE: ci_only_pilot_invitation_code_nonproduction_00001
       MFA_ENCRYPTION_KEY: 8a5e11223344556677889900aabbccddeeff00112233445566778899aabbccdd
+      OPS_MONITOR_TOKEN: synthetic_ci_monitor_token_32plus_864f7eab
+      OPS_QUEUE_WARN_SECONDS: "300"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -65,6 +67,7 @@ jobs:
             sleep 1
           done
           curl -fsS http://localhost:3000/api/ready || (cat /tmp/contextops-worker.log && exit 1)
+          node scripts/hosted-acceptance.mjs || (cat /tmp/contextops-app.log && cat /tmp/contextops-worker.log && exit 1)
           node scripts/pilot-smoke.mjs || (cat /tmp/contextops-app.log && cat /tmp/contextops-worker.log && exit 1)
       - name: Retention cascade and identity cleanup smoke
         run: npx tsx scripts/retention-smoke.ts
