@@ -6,7 +6,7 @@
 import {pathToFileURL} from "node:url";
 
 const badHost = host => !host || host==="localhost" || host==="127.0.0.1" ||
-  host==="0.0.0.0" || host==="::1" || host.endsWith(".localhost");
+  host==="0.0.0.0" || host==="::1" || host==="[::1]" || host.endsWith(".localhost");
 const placeholder = value => !value || /REPLACE_|YOUR_|CHANGE_ME|EXAMPLE|PLACEHOLDER/i.test(value);
 
 function parseUrl(value,protocols,requirePath=false){
