@@ -46,17 +46,30 @@ export async function GET(request:NextRequest,{params}:Context){
         "Content-Disposition":'attachment; filename="contextops-trace-template.csv"',"Cache-Control":"no-store"}});
     }
     if(action==="overview"){
-      const [counts,traces,latestEvaluation,latestShadow,latestReport]=await Promise.all([
+      const [counts,traces,latestEvaluation,latestShadow,latestReport,baselinePricing]=await Promise.all([
         db.executionTrace.count({where:{workspaceId,organizationId:org}}),
         db.executionTrace.findMany({where:{workspaceId,organizationId:org},select:{
           inputTokens:true,outputTokens:true,latencyMs:true,status:true,modelName:true,taskType:true,
+          outputText:true,expectedOutput:true,humanLabel:true,
         },take:MAX_TRACES}),
         db.evaluationRun.findFirst({where:{workspaceId,organizationId:org},orderBy:{createdAt:"desc"}}),
         db.shadowModeRun.findFirst({where:{workspaceId,organizationId:org},orderBy:{createdAt:"desc"}}),
         db.savingsReport.findFirst({where:{workspaceId,organizationId:org},orderBy:{createdAt:"desc"}}),
+        db.costSnapshot.findFirst({where:{workspaceId,organizationId:org,provider:"BASELINE",
+          model:access.workspace.modelName},orderBy:{createdAt:"desc"}}),
       ]);
       const classes=await db.taskClassification.groupBy({by:["category","suitability"],where:{workspaceId,organizationId:org},_count:{_all:true}});
+      const sampleCost=baselinePricing?traces.reduce((total,t)=>total+traceCost(t.inputTokens,
+        t.outputTokens,baselinePricing.priceInputPerMillion,baselinePricing.priceOutputPerMillion),0):null;
+      const labeledSuccess=traces.filter(t=>(t.expectedOutput||t.humanLabel)&&t.outputText&&
+        (t.humanLabel??t.expectedOutput)?.toLowerCase().trim()===t.outputText.toLowerCase().trim()).length;
+      const p95=traces.length?[...traces].sort((a,b)=>a.latencyMs-b.latencyMs)[
+        Math.ceil(traces.length*.95)-1].latencyMs:null;
       return json({workspace:access.workspace,counts:datasetSummary(traces),total:counts,
+        modeledSampleSpend:sampleCost,costPerLabeledSuccess:sampleCost!==null&&labeledSuccess>0?
+          sampleCost/labeledSuccess:null,labeledSuccess,p95LatencyMs:p95,
+        pricingAssumptions:baselinePricing?{input:baselinePricing.priceInputPerMillion,
+          output:baselinePricing.priceOutputPerMillion,effectiveAt:baselinePricing.effectiveAt}:null,
         categories:classes.map(c=>({category:c.category,suitability:c.suitability,count:c._count._all})),
         latestEvaluation,latestShadow,latestReport});
     }
@@ -104,6 +117,8 @@ export async function GET(request:NextRequest,{params}:Context){
         {subjectType:{in:["ImportJob","EvaluationRun","RoutingPolicy","ShadowModeRun","SavingsReport","HumanReview"]}}]},
       orderBy:{createdAt:"desc"},take:100,select:{id:true,action:true,subjectType:true,subjectId:true,createdAt:true,metadata:true}})});
     if(action==="settings")return json({thresholds:await db.qualityThreshold.findMany({where:{workspaceId,organizationId:org}}),
+      pricing:await db.costSnapshot.findMany({where:{workspaceId,organizationId:org},
+        orderBy:{createdAt:"desc"},take:10}),
       connections:await db.workflowConnection.findMany({where:{workspaceId,organizationId:org},
         select:{id:true,name:true,provider:true,status:true,consentAt:true}})});
     return apiError("Unknown endpoint",404);
@@ -185,6 +200,7 @@ export async function POST(request:NextRequest,{params}:Context){
       return json({run:result},201);
     }
     if(action==="policies"){
+      if(!["OWNER","ADMIN"].includes(access.membership.role))return apiError("Owner or admin role required",403);
       const input=policySchema.parse(await request.json());
       const run=await db.evaluationRun.findFirst({where:{
         id:input.evaluationRunId,workspaceId,organizationId:org,status:"COMPLETED"}});
@@ -292,7 +308,20 @@ export async function POST(request:NextRequest,{params}:Context){
       await audit(org,user.id,"HUMAN_REVIEW_RECORDED","HumanReview",review.id,{workspaceId,decision:input.decision});
       return json({review:updated});
     }
+    if(action==="pricing"){
+      if(!["OWNER","ADMIN"].includes(access.membership.role))
+        return apiError("Owner or admin role required",403);
+      const input=z.object({provider:z.string().min(2).max(60),model:z.string().min(2).max(120),
+        priceInputPerMillion:z.number().min(0).max(100000),
+        priceOutputPerMillion:z.number().min(0).max(100000)}).parse(await request.json());
+      const snapshot=await db.costSnapshot.create({data:{workspaceId,organizationId:org,...input}});
+      await audit(org,user.id,"PRICE_ASSUMPTION_SAVED","Workspace",workspaceId,{
+        workspaceId,model:input.model,provider:input.provider});
+      return json({snapshot},201);
+    }
     if(action==="settings"){
+      if(!["OWNER","ADMIN"].includes(access.membership.role))
+        return apiError("Owner or admin role required",403);
       const body=z.object({taskType:z.string().min(1).max(80),minimumQuality:z.number().min(.5).max(1),
         maximumErrorRate:z.number().min(0).max(1),maximumFallbackRate:z.number().min(0).max(1),
         maximumLatencyMs:z.number().int().min(1).max(120000)}).parse(await request.json());
@@ -303,6 +332,7 @@ export async function POST(request:NextRequest,{params}:Context){
       return json({threshold:updated});
     }
     if(action==="connections"){
+      if(!["OWNER","ADMIN"].includes(access.membership.role))return apiError("Owner or admin role required",403);
       const input=z.object({name:z.string().min(2).max(120),provider:z.enum(["MOCK"]),
         confirmNoExternalData:z.literal(true)}).parse(await request.json());
       const connection=await db.workflowConnection.create({data:{organizationId:org,workspaceId,

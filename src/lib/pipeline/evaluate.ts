@@ -10,6 +10,7 @@ export const evaluationRequestSchema=z.object({
   consentExternal:z.boolean().default(false),
   maximumSamples:z.number().int().min(5).max(50).default(30),
   minimumQuality:z.number().min(0.5).max(1).default(0.95),
+  maxQualityDrop:z.number().min(0).max(0.2).default(0.05),
   candidateInputPrice:z.number().min(0).max(100000),
   candidateOutputPrice:z.number().min(0).max(100000),
   baselineInputPrice:z.number().min(0).max(100000),
@@ -65,15 +66,16 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
   await db.evaluationResult.createMany({data:results});
   const quality=scored.filter(s=>s.valid).length/allowed.length,errorRate=errors/allowed.length;
   const avgLatency=totalLatency/allowed.length;
+  const baselineAccuracy=baselineCorrect/allowed.length;
   const baselineCost=allowed.reduce((sum,{trace})=>sum+
     (trace.inputTokens*params.baselineInputPrice+trace.outputTokens*params.baselineOutputPrice)/1000000,0);
   const details={
-    labelCount:allowed.length,baselineAccuracy:baselineCorrect/allowed.length,candidateMacroF1:macroF1(scored),
-    minimumQuality:enforcedQuality,baselineCost,candidateCost:totalCost,
+    labelCount:allowed.length,baselineAccuracy,candidateMacroF1:macroF1(scored),
+    minimumQuality:enforcedQuality,maxQualityDrop:params.maxQualityDrop,baselineCost,candidateCost:totalCost,
     candidateInputPrice:params.candidateInputPrice,candidateOutputPrice:params.candidateOutputPrice,
     baselineInputPrice:params.baselineInputPrice,baselineOutputPrice:params.baselineOutputPrice,
     fallbackRate:1-quality,manualReviewRequired:false,provider:params.provider,
-    canRecommend:quality>=enforcedQuality&&errorRate<=0.05&&avgLatency<=10000&&totalCost<baselineCost&&baselineCost>0,
+    canRecommend:quality>=enforcedQuality&&quality>=baselineAccuracy-params.maxQualityDrop&&errorRate<=0.05&&avgLatency<=10000&&totalCost<baselineCost&&baselineCost>0,
     source:"labeled_test_set",externalConsent:params.consentExternal,
   };
   await db.evaluationDataset.create({data:{organizationId:workspace.organizationId,workspaceId:workspace.id,

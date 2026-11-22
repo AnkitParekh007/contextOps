@@ -116,12 +116,13 @@ export const canonicalColumns=[
 ] as const;
 export function mapColumns(raw:unknown[],mapping:Record<string,string>):unknown[]{
   const allowed=new Set<string>(canonicalColumns);
-  if(Object.entries(mapping).length>30||Object.values(mapping).some(v=>!allowed.has(v)))
+  const clean=Object.fromEntries(Object.entries(mapping).filter(([,target])=>target!==""));
+  if(Object.entries(clean).length>30||Object.values(clean).some(v=>!allowed.has(v)))
     throw Error("Invalid column mapping");
   return raw.map(item=>{
     if(!item||typeof item!=="object"||Array.isArray(item))return item;
     return Object.fromEntries(Object.entries(item).map(([key,value])=>[
-      mapping[normalize(key)]??key,value,
+      clean[normalize(key)]??key,value,
     ]));
   });
 }
