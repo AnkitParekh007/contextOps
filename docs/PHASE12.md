@@ -43,3 +43,9 @@ No current result establishes verified customer savings or guaranteed production
 - Real-world confidence/statistical validation and future approved production traffic-shift design. No such traffic switch is offered.
 
 **Phase 12 code completion is not the same as an approved live customer pilot.**
+
+### Additional operator spending safeguards
+
+Even after `ENABLE_EXTERNAL_BENCHMARKS=true`, external execution requires the exact workspace ID in the private `BENCHMARK_APPROVED_WORKSPACE_IDS` allowlist and a Redis-atomic per-organization UTC-day conservative spend reservation. Set `BENCHMARK_DAILY_ORG_BUDGET_USD` to a separately approved amount (default $1 equivalent in modeled USD). When the running sum exceeds the cap, further calls fail closed. Reservations are not refunded after failed calls, since those calls might still be billed.
+
+**This is not a guaranteed financial spend limit**: model billing can differ from user-entered prices and token-envelope estimates. Keep provider-side account hard spending limits in place when available; confirm invoices independently. Do not set flags or add live workspace IDs without explicit authorization.
