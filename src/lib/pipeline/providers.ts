@@ -5,11 +5,12 @@ export type ProviderKey="MOCK"|"ANTHROPIC"|"OPENAI";
 export type InferenceInput={text:string;model:string;provider:ProviderKey;taskType:string;labelSet:string[]};
 function ticketClassify(text:string){
   const lower=text.toLowerCase();
+  // Specific incident intent takes priority over incidental words such as "tracking".
+  if(/crash|error|dashboard|technical|bug/.test(lower))return "technical issue";
+  if(/refund|return(ed)?/.test(lower))return "refund request";
+  if(/login|log in|account|sign in/.test(lower))return "account access";
   if(/invoice|billing|charge|fee|payment/.test(lower))return "billing question";
   if(/shipment|shipping|arrive|tracking|delivery/.test(lower))return "shipping status";
-  if(/refund|return(ed)?/.test(lower))return "refund request";
-  if(/crash|error|dashboard|technical|bug/.test(lower))return "technical issue";
-  if(/login|log in|account|sign in/.test(lower))return "account access";
   return "spam/other";
 }
 async function mockProvider(input:InferenceInput):Promise<InferenceResult>{
