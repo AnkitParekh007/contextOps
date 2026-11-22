@@ -61,3 +61,25 @@ Phase 13 turns the synthetic pilot into a deployable, observable, *private* host
 - [ ] Human decision to permit any non-synthetic customer records
 
 **No live deployment is claimed by passing CI. The public GitHub Pages demo is a separate static experience.**
+
+## Phase 13 governance acceptance expansion
+
+The dedicated `scripts/benchmark-governance-smoke.mjs` test now runs after the full synthetic pilot in CI. It uses its own synthetic test organization and confirms:
+
+- Private invited registration, email confirmation and authenticated workspace access.
+- Synthetic 500-record dataset creation and classification.
+- Explicit draft protocol creation and incorrect confirmation rejection.
+- Frozen cohort fingerprint and deterministic holdout evaluation using the MOCK provider.
+- Same-model frozen-holdout replay rejection.
+- External model invocation refusal when processing is unapproved.
+- Offline failure-cost scenario labels outcomes as unverified.
+- Aggregate invoice entry remains **SELF_REPORTED_UNVERIFIED**, never certified savings.
+- Synthetic workspace deletion.
+
+The test refuses to start unless `CI=true`, `APP_URL=http://localhost:3000` and real external provider benchmarking is disabled. No paid API calls or production writes are needed.
+
+Passing this test validates the code path in an isolated environment, not hosted reliability, cloud backups, actual invoice proof or customer-model quality.
+
+### Next external approvals
+
+Obtain a spend-approved hosting project, a functioning HTTPS pilot, independent transactional-email verification, a real backup restore, security/privacy signoff, approved sanitized datasets and actual provider cost evidence. Do not mark a production deployment complete from CI alone.
