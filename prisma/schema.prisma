@@ -24,6 +24,13 @@ model User {
   memberships  Membership[]
   auditLogs    AuditLog[]
   authSessions AuthSession[]
+  emailVerifiedAt DateTime?
+  mfaSecretEncrypted String? @db.Text
+  mfaPendingEncrypted String? @db.Text
+  mfaEnabledAt DateTime?
+  mfaLastCounter Int?
+  authChallenges AuthChallenge[]
+  mfaRecoveryCodes MfaRecoveryCode[]
 }
 
 model Organization {
@@ -58,6 +65,7 @@ model Workspace {
   useCase        String       @db.VarChar(80)
   provider       String       @db.VarChar(60)
   modelName      String       @db.VarChar(120)
+  retentionUntil DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -82,6 +90,7 @@ model Workspace {
   @@unique([organizationId, slug])
   @@unique([id, organizationId])
   @@index([organizationId])
+  @@index([retentionUntil])
 }
 
 model AuditLog {
@@ -400,4 +409,31 @@ model AuthSession {
 
   @@index([userId, revokedAt])
   @@index([expiresAt])
+}
+
+/** One-time, short-lived challenges; raw links never enter the database. */
+model AuthChallenge {
+  id String @id @default(cuid())
+  userId String
+  purpose String @db.VarChar(16)
+  tokenHash String @unique @db.VarChar(64)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  consumedAt DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, createdAt])
+  @@index([expiresAt])
+}
+
+/** Password plus possession factor, with one-time hashed emergency codes. */
+model MfaRecoveryCode {
+  id String @id @default(cuid())
+  userId String
+  codeHash String @db.VarChar(64)
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, codeHash])
 }
