@@ -195,7 +195,7 @@ function UseCases(){
 function Range({label,value,min,max,step=1,suffix="",onChange}:{label:string;value:number;min:number;max:number;step?:number;suffix?:string;onChange:(v:number)=>void}){
   const fill=(value-min)/(max-min)*100;
   return <label className="range"><span className="range-head"><span>{label}</span><strong>{numberFmt(value)}{suffix}</strong></span>
-    <input type="range" min={min} max={max} step={step} value={value} onChange={e=>onChange(Number(e.currentTarget.value))} style={{background:`linear-gradient(to right,#c5fc70 ${fill}%,#344348 ${fill}%)`}}/></label>;
+    <input type="range" min={min} max={max} step={step} value={value} onChange={e=>onChange(Number(e.currentTarget.value))} style={{background:`linear-gradient(to right,#80A4EC ${fill}%,#293B53 ${fill}%)`}}/></label>;
 }
 function CalculatorSection(){
   const [volume,setVolume]=useState(100000);
