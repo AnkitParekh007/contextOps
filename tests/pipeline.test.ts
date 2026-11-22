@@ -3,7 +3,7 @@ import {redactText,sanitizeValue} from "../src/lib/pipeline/redaction";
 import {parseRows,cleanRows} from "../src/lib/pipeline/parse";
 import {classify} from "../src/lib/pipeline/classify";
 import {calculateSavings} from "../src/lib/pipeline/cost";
-import {macroF1,compareOutput} from "../src/lib/pipeline/evaluate";
+import {macroF1,compareOutput} from "../src/lib/pipeline/scoring";
 import {routeDecision} from "../src/lib/pipeline/routing";
 describe("PII and secret handling",()=>{
   it("redacts common PII and API keys",()=>{
