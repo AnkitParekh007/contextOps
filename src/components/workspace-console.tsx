@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -56,6 +57,8 @@ async function fetchJson(url:string){
 }
 export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
   const api="/api/workspaces/"+workspaceId;
+  const router=useRouter();
+  const [deletionPhrase,setDeletionPhrase]=useState("");
   const queryClient=useQueryClient();
   const {data,error,isLoading}=useQuery<Json>({
     queryKey:["contextops",workspaceId,section],
@@ -119,6 +122,12 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
         <Box label="Input tokens" value={num(counts.totalInputTokens)}/>
         <Box label="Output tokens" value={num(counts.totalOutputTokens)}/>
         <Box label="Trace error rate" value={pct(counts.errorRate)}/>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-4">
+        <Box label="Modeled sample spend" value={money(overview.modeledSampleSpend)} sub="From tokens × stored price assumptions"/>
+        <Box label="Cost per labeled success" value={money(overview.costPerLabeledSuccess)} sub="Only validated, labeled sample tasks"/>
+        <Box label="P95 latency" value={overview.p95LatencyMs==null?"—":num(overview.p95LatencyMs)+" ms"} sub="Observed trace executions"/>
+        <Box label="Current pricing" value={overview.pricingAssumptions?"Configured":"Not set"} sub="Configure rates in Settings"/>
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <Box label="Latest test-set quality" value={pct(latestEval?.qualityScore)} sub="Candidate evaluation"/>
@@ -294,6 +303,16 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
       new Date(String(e.createdAt)).toLocaleString(),String(e.action),String(e.subjectType),
       JSON.stringify(e.metadata??{}).slice(0,150)])}/>}
     {section==="settings"&&<>
+      <Card className="space-y-5 p-7"><h2 className="text-lg font-bold">Cost baseline (manual provider rates)</h2>
+        <p className="text-sm text-slate-500">Set your current production model rates per million tokens. These are assumptions, not validated billing charges.</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <NumberField label="Baseline input $ per million tokens" value={baselineIn} onChange={setBaselineIn}/>
+          <NumberField label="Baseline output $ per million tokens" value={baselineOut} onChange={setBaselineOut}/>
+        </div>
+        {button("Save baseline pricing",()=>{const ws=(data?.workspace??{}) as Json;
+          void invoke("pricing",{provider:"BASELINE",model:String(ws.name?"":"" )||"missing",priceInputPerMillion:baselineIn,priceOutputPerMillion:baselineOut});},false)}
+        <p className="text-xs text-slate-500">A pricing record is also saved automatically when you complete a model evaluation.</p>
+      </Card>
       <Card className="space-y-5 p-7"><h2 className="text-lg font-bold">Quality threshold</h2>
         <p className="text-sm text-slate-500">Default confidence gate is 95% for routine classification. Configure task-specific quality expectations.</p>
         <NumberField label="Minimum classification quality (0.50–1.00)" value={quality} onChange={setQuality} min={.5} max={1} step={.01}/>
@@ -306,7 +325,26 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
         {button("Connect mock support system",()=>{void invoke("connections",{
           name:"Demo support connector",provider:"MOCK",confirmNoExternalData:true});})}
       </Card>
-      <Table headers={["Connector","Provider","Status"]} rows={items("connections").map(c=>[
+      {data?.role==="OWNER"||data?.role==="ADMIN"?<Card className="space-y-4 border-red-200 p-7">
+        <h2 className="text-lg font-bold text-red-700">Delete workspace data</h2>
+        <p className="text-sm text-slate-600">Permanently deletes this workspace, execution traces, evaluations, policies, reports and simulations. Organization and audit history remain.</p>
+        <label className="block text-sm font-semibold">Enter DELETE {String(((data?.workspace??{}) as Json).name??"workspace")} to confirm
+          <Input className="mt-2" value={deletionPhrase} onChange={e=>setDeletionPhrase(e.target.value)}/>
+        </label>
+        <Button variant="secondary" disabled={busy||deletionPhrase!=="DELETE "+String(((data?.workspace??{}) as Json).name??"workspace")}
+          onClick={async()=>{
+            setBusy(true);setMessage("");try{
+              const response=await fetch("/api/workspaces/"+workspaceId,{method:"DELETE",
+                headers:{"Content-Type":"application/json"},body:JSON.stringify({confirmation:deletionPhrase})});
+              const body=await response.json();if(!response.ok)throw Error(body.error??"Delete failed");
+              router.replace("/dashboard");router.refresh();
+            }catch(error){setMessage(error instanceof Error?error.message:"Delete failed");}
+            finally{setBusy(false);}
+          }}>Delete this workspace and its data</Button>
+      </Card>:null}
+      <Table headers={["Provider","Model","Input $/1M","Output $/1M"]} rows={items("pricing").map(p=>[
+        String(p.provider),String(p.model),money(p.priceInputPerMillion),money(p.priceOutputPerMillion)])}/>
+            <Table headers={["Connector","Provider","Status"]} rows={items("connections").map(c=>[
         String(c.name),String(c.provider),String(c.status)])}/>
       <Table headers={["Task type","Minimum quality","Max error rate"]} rows={items("thresholds").map(t=>[
         String(t.taskType),pct(t.minimumQuality),pct(t.maximumErrorRate)])}/>
