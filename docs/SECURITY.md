@@ -53,3 +53,7 @@ The authenticated pilot now checks database-backed session revocation on every r
 ## Phase 11 identity and expiry follow-up
 
 Hosted registration requires an out-of-band email confirmation, the password recovery flow uses single-use links and revokes all sessions, and users can opt into authenticator MFA with encrypted secrets and one-time recovery codes. Expiry of an entire workspace is OWNER/ADMIN opt-in only; default is no scheduled deletion. Auth/session token maintenance runs from the worker. Production mail delivery, key rotation, backup expiry, SSO, formal security testing and legal approvals remain external gates. See [Phase 11](PHASE11.md).
+
+## Phase 13 monitoring privacy
+
+The operator diagnostics route is protected by a strong bearer token verified through constant-time digest comparison. It reveals aggregate service health and import-queue counts only; never raw traces, tenant identifiers, emails or API keys. Monitoring is private, not a customer-facing feature. Production token provisioning/rotation, independent review and external alert delivery remain operational tasks. See [Phase 13](PHASE13.md).

@@ -62,3 +62,7 @@ See [Phase 11 plan](PHASE11.md) for the authorization and recovery acceptance ch
 After migration, configure a private Resend API key with a verified sender domain, a separate 64-hex-character MFA encryption key and the private pilot invitation secret. `APP_URL` must match HTTPS exactly. Production registration returns a service-unavailable error when an email sender is not configured, and logins to unverified accounts fail closed. Previously registered users must verify via `/check-email`.
 
 The worker is required for periodic cleanup of expired session and email token rows, and any explicitly scheduled whole-workspace expiry. Add a worker health alert, backup expiry policy, off-site encrypted backups and a **restored-to-isolation** acceptance drill before accepting real customer traces. Do not reuse the CI synthetic mail-capture mode on a live host.
+
+## Phase 13 operational acceptance
+
+Use the [Phase 13 runbook](PHASE13.md) for a protected `/api/ops/status` monitor endpoint and the read-only `node scripts/hosted-acceptance.mjs` probe. The monitor requires `OPS_MONITOR_TOKEN` in the web-service secret store; do not send that secret to browsers, GitHub logs or other services. The production Dockerfile now includes shared source required by `npm run worker`. CI builds and boots that actual worker image. Passing CI does **not** prove Railway was deployed or that managed backups were restored.

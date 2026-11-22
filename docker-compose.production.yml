@@ -13,6 +13,8 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY:?Configure verified transactional-email provider}
       EMAIL_FROM: ${EMAIL_FROM:?Configure verified sender address}
       MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?Configure 64-hex-digit 32-byte encryption key}
+      OPS_MONITOR_TOKEN: ${OPS_MONITOR_TOKEN:?Configure a strong monitoring token}
+      OPS_QUEUE_WARN_SECONDS: ${OPS_QUEUE_WARN_SECONDS:-300}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ports:
