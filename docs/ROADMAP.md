@@ -68,3 +68,10 @@ Frozen benchmark preregistration, disjoint holdout fingerprints, tenant-scoped g
 ## Phase 13 — Hosted Pilot Activation (started)
 
 Production worker image packaging, protected aggregate operator diagnostics and a read-only HTTPS hosted acceptance probe are implemented for CI. Real Railway services, backup/restore evidence, alerts, privacy approval and live synthetic signoff remain pending. See [Phase 13](PHASE13.md).
+
+## Phase 14 — Synthetic Pilot Acceptance Evidence (started)
+
+An isolated, dual-tenant synthetic acceptance runner now exercises frozen
+benchmarking and report provenance through authenticated API routes. The
+generated CI-only manifest explicitly marks external acceptance gates
+unverified. This is not production signoff; see [Phase 14](PHASE14.md).
