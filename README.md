@@ -161,6 +161,10 @@ See [Phase 14](docs/PHASE14.md).
 
 The automated release-readiness check is **blocked by default**. It validates the synthetic acceptance manifest, records missing external approvals, and never grants customer-data authorization or verifies savings. See [Phase 15](docs/PHASE15.md).
 
+## Phase 16 — Release evidence integrity
+
+Phase 15 readiness validation now rejects duplicate/malformed Phase 14 checks, unexpected fields, future-dated manifests and stale operator evidence; adversarial tests maintain the independent-review boundary. This does **not** deploy the private pilot or authorize customer data. See [Phase 16](docs/PHASE16.md).
+
 ## Phase 17 — Private pilot operational validation
 
 A fail-closed, read-only operational probe now checks HTTPS target approval, operator endpoint privacy, worker/queue readiness, external benchmark disablement and repeated health sampling. CI evidence remains synthetic-only and does not authorize deployment or customer data. See [Phase 17](docs/PHASE17.md).

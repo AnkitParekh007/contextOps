@@ -4,10 +4,12 @@ import {calculateReleaseReadiness,requiredExternalGates,mandatorySyntheticChecks
 
 const validSynthetic={
   schemaVersion:1,phase:14,status:"PASS",scope:"synthetic_ephemeral_ci_only",
+  generatedAt:"2026-11-22T23:00:00.000Z",releaseSha:"local",
   providerCalls:"MOCK_ONLY",customerDataProcessed:false,
   verifiedCustomerSavings:false,externalAcceptance:"NOT_EVALUATED",
   productionReady:false,checkCount:mandatorySyntheticChecks.length,
-  checks:mandatorySyntheticChecks.map(name=>({name,status:"PASS"})),
+  failures:[],blockers:["No hosted service","No data authorization","No billing approval","No human release signoff"],
+  checks:mandatorySyntheticChecks.map(name=>({name,status:"PASS",description:`Synthetic ${name} contract passed`})),
 };
 const now=new Date("2026-11-23T00:00:00.000Z");
 describe("Phase 15 release evidence must fail closed",()=>{
