@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     if (!await enforceRateLimit("registration", body.email, 5)) return apiError("Try again later", 429);
     if (process.env.NODE_ENV === "production") {
       const configured = process.env.PILOT_INVITE_CODE;
-      if (!configured || configured.length < 20) return apiError("Pilot registrations are currently closed", 403);
+      if (!configured || configured.length < 20 || configured.startsWith("REPLACE_")) return apiError("Pilot registrations are currently closed", 403);
       const requested = body.inviteCode ?? "";
       const actual = createHash("sha256").update(requested).digest();
       const expected = createHash("sha256").update(configured).digest();
