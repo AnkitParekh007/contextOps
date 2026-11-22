@@ -8,6 +8,28 @@ permissions:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: contextops
+          POSTGRES_PASSWORD: contextops_local
+          POSTGRES_DB: contextops
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U contextops -d contextops"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://contextops:contextops_local@localhost:5432/contextops?schema=public
+      REDIS_URL: redis://localhost:6379
+      AUTH_SECRET: ci_only_change_me_32_character_secret_00001
+      APP_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -15,6 +37,8 @@ jobs:
           node-version: "22"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Apply migrations
+        run: npm run db:deploy
       - name: Typecheck
         run: npm run typecheck
       - name: Unit tests
@@ -23,7 +47,11 @@ jobs:
         run: npm run lint
       - name: Build
         run: npm run build
-        env:
-          DATABASE_URL: postgresql://contextops:contextops_local@localhost:5432/contextops?schema=public
-          AUTH_SECRET: ci_only_change_me_32_character_secret_00001
-          APP_URL: http://localhost:3000
+      - name: Runtime smoke test
+        run: |
+          npm run start > /tmp/contextops-app.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/api/health >/dev/null; then break; fi
+            sleep 2
+          done
+          node scripts/smoke.mjs || (cat /tmp/contextops-app.log && exit 1)
