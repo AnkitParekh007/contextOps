@@ -52,7 +52,7 @@ test("target validation rejects unrelated, lookalike, non-staging and HTTP domai
     "https://production.example.org",
     "http://staging.example.org",
     "https://attacker-staging.net",
-  ])assert.throws(()=>validatePinnedHost(url,url,"example.org"),/HOST_/);
+  ])assert.throws(()=>validatePinnedHost(url,url,"example.org"),/(?:HOST_|TARGET_NOT_APPROVED)/);
   assert.equal(validatePinnedHost(
     "https://staging.example.org","https://staging.example.org","example.org").scope,
     "private_hosted_read_only");
