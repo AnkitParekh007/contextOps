@@ -114,7 +114,7 @@ async function main(){
     baselineInputPrice:2,baselineOutputPrice:10,
     candidateInputPrice:.1,candidateOutputPrice:.5};
   const first=await call(api+"/evaluations",{method:"POST",cookie:ownerCookie,
-    body:evaluationBody});
+    body:evaluationBody,expected:201});
   assert.equal(first.result.run.details.preregistered,true);
   assert.equal(first.result.run.details.benchmarkProtocolId,protocolId);
   assert.match(first.result.run.details.holdoutFingerprint,/^[a-f0-9]{64}$/);
