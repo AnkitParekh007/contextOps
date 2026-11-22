@@ -2,6 +2,7 @@ import {readFile,mkdir,writeFile} from "node:fs/promises";
 import {join} from "node:path";
 import {calculateReleaseReadiness} from "../src/lib/ops/release-gates";
 
+async function main(){
 const source=process.env.PHASE14_MANIFEST_PATH??"artifacts/phase14-synthetic-acceptance.json";
 const destination=process.env.PHASE15_OUTPUT_DIR??"artifacts";
 const parsed=JSON.parse(await readFile(source,"utf8")) as unknown;
@@ -28,3 +29,6 @@ console.log("Phase 15 release readiness:",result.status,
 if(!result.syntheticCiPassed)process.exitCode=1;
 if(result.productionApproved||result.customerDataApproved||result.verifiedSavings)
   process.exitCode=1;
+
+}
+main().catch(error=>{console.error(error instanceof Error?error.message:"Release gate failed");process.exitCode=1;});
