@@ -1,0 +1,40 @@
+# Phase 20: non-provisioning deployment blueprint for an operator-approved host.
+# External managed Postgres/Redis are NOT created by this file. Verify their
+# private networking, TLS, backups and access separately. Do not run until approved.
+name: contextops-staging
+x-shared: &shared
+  NODE_ENV: production
+  DATABASE_URL: ${DATABASE_URL:?Private managed database required}
+  REDIS_URL: ${REDIS_URL:?Private managed Redis required}
+  ENABLE_EXTERNAL_BENCHMARKS: "false"
+  OPENAI_API_KEY: ""
+  ANTHROPIC_API_KEY: ""
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    command: ["npm","run","start"]
+    environment:
+      <<: *shared
+      APP_URL: ${APP_URL:?HTTPS staging origin required}
+      AUTH_SECRET: ${AUTH_SECRET:?Unique staging secret required}
+      PILOT_INVITE_CODE: ${PILOT_INVITE_CODE:?Private staging invitation required}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?MFA key required}
+      OPS_MONITOR_TOKEN: ${OPS_MONITOR_TOKEN:?Monitor token required}
+      RESEND_API_KEY: ${RESEND_API_KEY:?Verified staging sender required}
+      EMAIL_FROM: ${EMAIL_FROM:?Verified sender required}
+      CONTEXTOPS_RELEASE_SHA: ${CONTEXTOPS_RELEASE_SHA:?Pinned release SHA required}
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    command: ["npm","run","worker"]
+    environment:
+      <<: *shared
+    restart: unless-stopped
+# Migrations intentionally are not an automatic app-start side effect here.
+# A privileged operator must verify backup/rollback before applying them.
