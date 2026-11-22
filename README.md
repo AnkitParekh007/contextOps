@@ -135,3 +135,7 @@ The authenticated pilot now provides DB-backed revocable sessions, a password-co
 ### Current identity and retention engineering
 
 Hosted verification and account recovery require an approved transactional email provider. Authenticator MFA and explicit whole-workspace expiry are implemented as pilot controls. These features are not a substitute for enterprise identity, managed backup retention, privacy review or security certification. See [Phase 11](docs/PHASE11.md).
+
+## Phase 12 — Reproducible Benchmarks
+
+Evaluate with seeded label-stratified samples, uncertainty diagnostics and modeled cost per successful task. This is offline evidence only, not verified customer production results. Read docs/PHASE12.md.

@@ -55,3 +55,7 @@ No numerical reduction or guaranteed equivalence should be marketed without a ve
 ### Phase 11 identity and lifecycle engineering increment
 
 Added hosted email verification and password recovery scaffolding (sender configuration required), optional TOTP MFA with encrypted secrets and one-use recovery codes, replay-resistant login, and an explicitly scheduled whole-workspace retention/expiry process. These changes are subject to branch CI acceptance. **Operational signoff remains blocked** by live hosting, managed backup/restore, independent security assessment, customer DPA and privacy review. Next engineering phase: **Phase 12 — representative model benchmarking and measurable cost-per-success analysis**.
+
+## Phase 12 — Reproducible Benchmarking (started)
+
+Seeded stratified label sampling, auditable selection fingerprints, Wilson diagnostic uncertainty, per-label errors, latency percentiles and cost-per-success metrics are implemented as a first increment. Independent labels, representative holdout, live provider budgets, customer data authorization and verified savings remain pending. See docs/PHASE12.md.
