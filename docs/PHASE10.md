@@ -75,3 +75,7 @@ The GitHub request form is **public**. It asks only a broad category and an ackn
 ## Not yet included
 
 A live paid billing system, regulated-data processing, SSO/MFA, hardened automatic DLP, public customer onboarding, production routing, observed provider savings, verified customer outcomes, and a managed support/on-call team are **not** Phase 10 claims.
+
+## Phase 11 compatibility note
+
+Phase 11 introduces server-verifiable sessions and a new Prisma migration. All pre-Phase-11 JWTs are intentionally invalidated and require fresh login. Deploy `prisma migrate deploy` before any upgraded authenticated web service; retain a verified backup and rollback plan.

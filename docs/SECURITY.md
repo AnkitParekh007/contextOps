@@ -2,7 +2,7 @@
 
 ## Implemented controls
 
-- Bcrypt-hashed passwords (cost 12), signed expiring HTTP-only same-site cookies, Secure flag when production.
+- Bcrypt-hashed passwords (cost 12), signed expiring HTTP-only same-site cookies, Secure flag when production, **database-checked revocable sessions and password-confirmed global sign-out**.
 - Authentication throttling via Redis; workspace POST operations rate-limited.
 - Same-origin check on browser mutations and schema validation via Zod.
 - Organization membership enforcement before every workspace operation.
@@ -19,7 +19,7 @@
 ## Important gaps before using sensitive or regulated records
 
 1. **Automated redaction is not DLP.** Unrecognized customer IDs, names and uncommon secrets can still survive. Pilot with synthetic or independently approved sanitized records.
-2. **Identity and tenancy:** email verification, account recovery, stronger session revocation, MFA/enterprise SSO and independent cross-tenant penetration testing are not yet delivered.
+2. **Identity and tenancy:** email verification, account recovery, MFA/enterprise SSO and independent cross-tenant penetration testing are not yet delivered. Session revocation is implemented, but device/session management is still pilot-grade.
 3. **Retention:** workspace deletion is available, but configurable automated retention schedules, backups deletion, access logs and provider retention agreements need implementation.
 4. **Secrets:** no customer keys are stored today. If production connectors are added, use a proven managed secret vault with rotation and envelope encryption.
 5. **Security operations:** add production monitoring, abuse alerts, audit integrity controls, vulnerability patching, external review and incident response.
@@ -45,3 +45,7 @@ Trace imports are handled locally by the API/worker. Optional provider compariso
 - Customer DPA, provider terms and business processing rights documented
 - Authentication hardening, deletion retention and recovery workflow tested
 - Legal approval for any use of model outputs as training material
+
+## Phase 11 security increment
+
+The authenticated pilot now checks database-backed session revocation on every request, supports password-confirmed sign-out from all devices, and applies baseline security headers. An ephemeral CI backup/restore drill is implemented. These controls do **not** constitute enterprise or regulated-data certification. See [Phase 11 evidence and remaining gates](PHASE11.md).

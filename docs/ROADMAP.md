@@ -42,3 +42,12 @@ No numerical reduction or guaranteed equivalence should be marketed without a ve
 - **Invite-gated app registration and DB/Redis/worker readiness:** Implemented in the Next.js backend, pending live infrastructure.
 - **Railway production services and public authenticated application:** **Not deployed until external infrastructure, secrets, and live synthetic acceptance checks are confirmed.** Follow `docs/PHASE10.md`.
 - **Real-data pilot approval:** Unavailable, requires security/legal processing review.
+
+## Phase 11 — Pilot Security and Recovery
+
+**First engineering increment implemented, pending CI/merge acceptance:**
+- Revocable signed browser sessions persisted in Postgres, with single logout and password-confirmed global revocation.
+- Account security screen and replayed-cookie integration tests.
+- Security response headers and a synthetic PostgreSQL dump/isolated-restore drill in CI.
+
+**Not complete:** live Railway deployment, real managed backup/restore, session retention scheduling, email verification/recovery, MFA/SSO, DLP, independent pen test and security/privacy approval for customer data. Follow `docs/PHASE11.md`.

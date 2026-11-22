@@ -127,3 +127,7 @@ The current product is appropriate for a **controlled pilot using synthetic or a
 ## License
 
 See [LICENSE](LICENSE).
+
+## Phase 11 security increment
+
+The authenticated pilot now provides DB-backed revocable sessions, a password-confirmed "sign out every device" screen, baseline HTTP security headers, and an ephemeral PostgreSQL backup/restore regression in CI. Railway service provisioning and enterprise security controls remain separate gates. See [Phase 11 delivery and limitations](docs/PHASE11.md).
