@@ -1,5 +1,10 @@
-import {useMemo,useState} from "react";
-import type {ReactNode} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
+import type {ReactNode,PointerEvent} from "react";
+import {ThemeControl} from "./components/ThemeControl";
+import {MotionJourney} from "./components/MotionJourney";
+import {HeroSignals} from "./components/HeroSignals";
+import {useReveal} from "./hooks/useReveal";
+import {useCountUp} from "./hooks/useCountUp";
 import {ArrowDown,ArrowDownRight,ArrowRight,ArrowUpRight,BarChart3,BrainCircuit,
   Calculator,Check,CheckCircle2,ChevronDown,ChevronRight,CircleHelp,CloudUpload,
   Code2,Cpu,Database,ExternalLink,FileDown,FileText,FlaskConical,Github,GitBranch,
@@ -31,17 +36,58 @@ function Brand({inverse=false}:{inverse?:boolean}){
 }
 function Header(){
   const [open,setOpen]=useState(false);
+  const [scrolled,setScrolled]=useState(false);
+  const [progress,setProgress]=useState(0);
+  const [active,setActive]=useState("");
+  useEffect(()=>{
+    let frame=0;
+    const refresh=()=>{
+      if(frame)return;
+      frame=window.requestAnimationFrame(()=>{
+        frame=0;
+        const scroll=window.scrollY;
+        setScrolled(scroll>12);
+        const available=Math.max(1,document.documentElement.scrollHeight-window.innerHeight);
+        setProgress(Math.min(1,Math.max(0,scroll/available)));
+      });
+    };
+    refresh();
+    window.addEventListener("scroll",refresh,{passive:true});
+    window.addEventListener("resize",refresh);
+    return()=>{window.cancelAnimationFrame(frame);window.removeEventListener("scroll",refresh);window.removeEventListener("resize",refresh);};
+  },[]);
+  useEffect(()=>{
+    if(!("IntersectionObserver" in window))return;
+    const sections=nav.map(item=>document.getElementById(item.id)).filter((node):node is HTMLElement=>Boolean(node));
+    const io=new IntersectionObserver(entries=>{
+      for(const entry of entries){
+        if(entry.isIntersecting)setActive(entry.target.id);
+      }
+    },{rootMargin:"-25% 0px -55% 0px",threshold:0});
+    sections.forEach(section=>io.observe(section));
+    return()=>io.disconnect();
+  },[]);
   return <>
     <div className="announcement"><span className="pulse-dot"/><span>Now available: open-source controlled pilot</span><a href={githubUrl} target="_blank" rel="noreferrer">Explore repository <ArrowRight size={13}/></a></div>
-    <header className="site-header"><div className="container header-content">
-      <Brand/>
-      <nav className="desktop-nav" aria-label="Main navigation">{nav.map(n=><a href={"#"+n.id} key={n.id}>{n.label}</a>)}</nav>
-      <div className="header-cta"><a className="header-gh" href={githubUrl} target="_blank" rel="noreferrer"><Github size={17}/><span>GitHub</span></a>
-        <a className="btn btn-dark btn-sm" href={start} target="_blank" rel="noreferrer">Get started <ArrowRight size={16}/></a>
-        <button type="button" className="menu-toggle" aria-label={open?"Close navigation":"Open navigation"} aria-controls="mobile-nav" aria-expanded={open} onClick={()=>setOpen(!open)}>{open?<X size={24}/>:<Menu size={24}/>}</button>
+    <header className={"site-header"+(scrolled?" is-scrolled":"")}>
+      <div className="container header-content">
+        <Brand/>
+        <nav className="desktop-nav" aria-label="Main navigation">
+          {nav.map(item=><a className={active===item.id?"active":""} href={"#"+item.id} key={item.id}>{item.label}</a>)}
+        </nav>
+        <div className="header-cta">
+          <ThemeControl/>
+          <a className="header-gh" href={githubUrl} target="_blank" rel="noreferrer"><Github size={17}/><span>GitHub</span></a>
+          <a className="btn btn-dark btn-sm" href={start} target="_blank" rel="noreferrer">Get started <ArrowRight size={16}/></a>
+          <button type="button" className="menu-toggle" aria-label={open?"Close navigation":"Open navigation"} aria-controls="mobile-nav" aria-expanded={open} onClick={()=>setOpen(!open)}>{open?<X size={24}/>:<Menu size={24}/>}</button>
+        </div>
       </div>
-    </div>
-    {open&&<nav id="mobile-nav" className="mobile-nav" aria-label="Mobile navigation">{nav.map(n=><a href={"#"+n.id} key={n.id} onClick={()=>setOpen(false)}>{n.label}<ChevronRight size={18}/></a>)}<a href="#calculator" onClick={()=>setOpen(false)}>Cost calculator <ChevronRight size={18}/></a><a href={githubUrl} target="_blank" rel="noreferrer">View source <ExternalLink size={16}/></a></nav>}
+      {open&&<nav id="mobile-nav" className="mobile-nav" aria-label="Mobile navigation">
+        {nav.map(item=><a className={active===item.id?"active":""} href={"#"+item.id} key={item.id} onClick={()=>setOpen(false)}>{item.label}<ChevronRight size={18}/></a>)}
+        <a href="#calculator" onClick={()=>setOpen(false)}>Cost calculator <ChevronRight size={18}/></a>
+        <a href={githubUrl} target="_blank" rel="noreferrer" onClick={()=>setOpen(false)}>View source <ExternalLink size={16}/></a>
+      </nav>}
+      <span aria-hidden="true" className="header-scroll-track"><span className="header-scroll-progress" style={{transform:"scaleX("+progress+")"}}/></span>
     </header>
   </>;
 }
@@ -52,9 +98,23 @@ function SectionHead({eyebrow,title,desc,center=false}:{eyebrow:string;title:Rea
   return <div className={"section-head"+(center?" center":"")}><Eyebrow>{eyebrow}</Eyebrow><h2>{title}</h2>{desc&&<p>{desc}</p>}</div>;
 }
 function HeroBoard(){
+  const heroRef=useRef<HTMLDivElement>(null);
+  const onPointerMove=(event:PointerEvent<HTMLDivElement>)=>{
+    if(!window.matchMedia("(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)").matches)return;
+    const element=heroRef.current;if(!element)return;
+    const bounds=element.getBoundingClientRect();
+    const x=(event.clientX-bounds.left)/bounds.width-.5;
+    const y=(event.clientY-bounds.top)/bounds.height-.5;
+    element.style.setProperty("--hero-rotate-x",(2-y*4).toFixed(2)+"deg");
+    element.style.setProperty("--hero-rotate-y",(-5+x*7).toFixed(2)+"deg");
+  };
+  const onPointerLeave=()=>{
+    heroRef.current?.style.removeProperty("--hero-rotate-x");
+    heroRef.current?.style.removeProperty("--hero-rotate-y");
+  };
   const rows=[["Routine classification","Candidate evaluation","Eligible to test"],["Complex reasoning","Premium baseline","Preserve"],["Sensitive context","Human review","Escalate"]];
-  return <div className="hero-art" aria-label="Illustration of a synthetic ContextOps workspace">
-    <div className="hero-glow"/>
+  return <div ref={heroRef} className="hero-art" onPointerMove={onPointerMove} onPointerLeave={onPointerLeave} aria-label="Illustration of a synthetic ContextOps workspace">
+    <div className="hero-glow"/><HeroSignals/>
     <div className="hero-mini-tag top"><ShieldCheck size={17}/><span>Quality gate <strong>before routing</strong></span></div>
     <div className="hero-window">
       <div className="window-chrome"><span className="window-dots"><i/><i/><i/></span><span>CONTEXTOPS / WORKFLOW</span><span className="window-connected"><i/> Synthetic demo</span></div>
@@ -111,8 +171,7 @@ function Capabilities(){
 function Journey(){
   return <section className="journey-section section-padding" id="workflow"><div className="container">
     <div className="journey-intro"><SectionHead eyebrow="HOW IT WORKS" title={<>From black-box spend<br/>to <em>actionable evidence.</em></>} desc="Six deliberate steps. No blind model swapping. No production request interception."/></div>
-    <div className="journey-timeline">{processSteps.map((step,i)=><article className="journey-step" key={step.number}><div className="journey-number"><span>{step.number}</span>{i<processSteps.length-1&&<div className="journey-line"/>}</div>
-      <div className="journey-detail"><span className="journey-phase">{step.phase}</span><h3>{step.title}</h3><p>{step.description}</p></div></article>)}</div>
+    <MotionJourney/>
     <div className="journey-example"><span className="example-icon"><Play size={19}/></span><div><strong>Want to try the full flow?</strong><p>The repository includes 500 synthetic Northwind support tickets, six example categories, and a local mock evaluation provider.</p></div><a href={start} target="_blank" rel="noreferrer">Run the demo <ArrowRight size={17}/></a></div>
   </div></section>;
 }
@@ -123,7 +182,7 @@ function UseCases(){
     <SectionHead eyebrow="WHERE IT FITS" title={<>Real business work.<br/><em>Not a generic chatbot.</em></>} desc="Pick a workflow. Compare alternatives where the outputs can be measured. Escalate judgment-heavy work."/>
     <div className="use-grid"><div className="use-nav" role="tablist" aria-label="Use case categories">{useCases.map((u,i)=><button type="button" role="tab" aria-selected={selected===i} aria-controls="use-case-panel" id={"use-tab-"+i} className={"use-tab"+(selected===i?" active":"")} key={u.short} onClick={()=>setSelected(i)}>
       <span>{String(i+1).padStart(2,"0")}</span><strong>{u.short}</strong><ArrowRight size={17}/></button>)}</div>
-      <div className="use-detail" role="tabpanel" id="use-case-panel" aria-labelledby={"use-tab-"+selected}>
+      <div key={selected} className="use-detail" role="tabpanel" id="use-case-panel" aria-labelledby={"use-tab-"+selected}>
         <div className="use-detail-top"><Eyebrow light>{item.eyebrow}</Eyebrow><span className="use-open-icon"><Workflow size={25}/></span></div>
         <h3>{item.title}</h3><p>{item.desc}</p>
         <div className="use-list-label">WHAT YOU CAN ASSESS</div>
@@ -149,6 +208,7 @@ function CalculatorSection(){
     eligiblePercent:eligible,fallbackPercent:fallback,retryLimit:1,
     infrastructureMonthly:overhead,platformMonthly:0,baselineSuccessRate:.99,optimizedSuccessRate:.98
   }),[volume,eligible,fallback,overhead]);
+  const animatedSavings=useCountUp(scenario.netMonthlySavings);
   const pct=Math.max(0,Math.min(100,scenario.optimizedTotalMonthlyCost/Math.max(.01,scenario.baselineMonthlyCost)*100));
   const reset=()=>{setVolume(100000);setEligible(70);setFallback(10);setOverhead(0)};
   return <section className="calculator-section section-padding" id="calculator"><div className="container">
@@ -161,7 +221,7 @@ function CalculatorSection(){
       <div className="calc-detail"><CircleHelp size={18}/><p>Assumes 3,000 input + 500 output tokens per task. Baseline rates: $2 input/$10 output per million; candidate: $0.10/$0.50. Includes one cheap-model retry and premium fallback, with 99%/98% task-success assumptions. Model prices here are examples only.</p></div>
     </div>
     <div className="calc-result"><div className="calc-result-eyebrow"><span className="green-dot"/> SIMULATED MONTHLY SCENARIO</div>
-      <p className="calc-result-intro">Potential net difference</p><div className="calc-total">{money(scenario.netMonthlySavings)}<span>/mo</span></div>
+      <p className="calc-result-intro">Potential net difference</p><div className="calc-total" aria-label={"Estimated net monthly difference "+money(scenario.netMonthlySavings)}>{money(animatedSavings)}<span>/mo</span></div>
       <span className={"calc-delta "+(scenario.netMonthlySavings>=0?"good":"bad")}>{scenario.netMonthlySavings>=0?<ArrowDownRight size={18}/>:<ArrowUpRight size={18}/>}
         {Math.abs(scenario.savingsPercent).toFixed(1)}% {scenario.netMonthlySavings>=0?"lower modeled cost":"higher modeled cost"}</span>
       <div className="calc-bars"><div><p><span>All premium model</span><strong>{money(scenario.baselineMonthlyCost)}</strong></p><span className="calc-track"><i style={{width:"100%"}}/></span></div>
@@ -211,5 +271,6 @@ function Footer(){
   </div></footer>;
 }
 export default function App(){
+  useReveal();
   return <div className="site"><a href="#main" className="skip-link">Skip to content</a><Header/><main id="main"><Hero/><Why/><Capabilities/><Journey/><UseCases/><CalculatorSection/><Trust/><FAQ/><BottomCTA/></main><Footer/></div>;
 }

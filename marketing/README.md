@@ -35,3 +35,17 @@ The site is standalone, requires no backend credentials, and has no broken login
 ## Source of truth
 
 Marketing feature copy is imported from `src/lib/marketing-content.ts`, shared with the main repository. Do not claim live routing, fine-tuned business models, enterprise security certification, connected customer data, or verified realized savings until implemented and validated.
+
+## Interactive UI verification
+
+The site has Playwright browser checks for theme persistence, sticky-header behavior, scroll-driven navigation, mobile menus and reduced-motion accessibility. To run locally:
+
+```bash
+cd marketing
+npm install
+npx playwright install chromium
+npm run build
+npm run test:e2e
+```
+
+The GitHub Pages workflow runs these tests before uploading or publishing.

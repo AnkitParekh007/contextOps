@@ -38,6 +38,19 @@ jobs:
       - name: Typecheck and build static React website
         working-directory: marketing
         run: npm run build
+      - name: Install Chromium for marketing interaction tests
+        run: npx playwright install --with-deps chromium
+        working-directory: marketing
+      - name: Verify theme, sticky header, mobile menu and reduced-motion behavior
+        run: npm run test:e2e
+        working-directory: marketing
+      - name: Upload browser test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marketing-test-results
+          path: marketing/test-results/
+          if-no-files-found: ignore
       - name: Verify GitHub Pages artifact
         run: |
           test -f marketing/dist/index.html
