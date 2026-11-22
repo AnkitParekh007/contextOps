@@ -118,7 +118,9 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
   const syntheticOnly=allowed.every(({trace})=>trace.metadata!==null&&
     typeof trace.metadata==="object"&&!Array.isArray(trace.metadata)&&
     "synthetic" in trace.metadata&&trace.metadata.synthetic===true);
-  const labelScores=perLabelMetrics(scored).map(row=>({
+  const routineScores=scored.filter((_,index)=>
+    allowed[index].classification.category==="ROUTINE_CLASSIFICATION");
+  const labelScores=perLabelMetrics(routineScores).map(row=>({
     ...row,label:"group-"+createHash("sha256").update(row.label).digest("hex").slice(0,10),
   }));
   const details={
@@ -129,6 +131,9 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
     candidateMedianLatencyMs:percentile(successfulLatencies,.5),
     candidateP95LatencyMs:percentile(successfulLatencies,.95),
     providerErrorCount:errors,perLabelMetrics:labelScores,
+    perLabelScope:"routine_classification_only",
+    structuredExtractionCount:allowed.filter(item=>
+      item.classification.category==="STRUCTURED_EXTRACTION").length,
     sampling:selection.metadata,provenance:syntheticOnly?"synthetic_seed":"unverified_or_mixed",
     statisticalValidation:params.provider!=="MOCK"&&externalStatisticalGate,
     statisticalCaution:"Wilson score assumes independent Bernoulli outcomes. Deterministic stratification and small samples are diagnostic, not proof of representative production quality.",
