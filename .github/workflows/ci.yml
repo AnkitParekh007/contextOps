@@ -86,6 +86,8 @@ jobs:
         run: node scripts/phase14-acceptance.mjs
       - name: Verify sanitized Phase 14 evidence contract
         run: node scripts/verify-phase14-evidence.mjs
+      - name: Phase 15 fail-closed release readiness
+        run: npx tsx scripts/phase15-readiness.ts
       - name: Retention cascade and identity cleanup smoke
         run: npx tsx scripts/retention-smoke.ts
       - name: PostgreSQL synthetic backup and isolated restore drill
@@ -101,5 +103,6 @@ jobs:
           path: |
             artifacts/phase14-synthetic-acceptance.json
             artifacts/phase14-synthetic-acceptance.md
+            artifacts/phase15-pilot-readiness.json
           retention-days: 14
           if-no-files-found: warn

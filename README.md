@@ -156,3 +156,7 @@ synthetic API acceptance test and generates a sanitized manifest for CI.
 The workflow uploads this manifest for operator review but never equates
 synthetic pass status with customer-data or production approval.
 See [Phase 14](docs/PHASE14.md).
+
+## Phase 15: pilot release evidence
+
+The automated release-readiness check is **blocked by default**. It validates the synthetic acceptance manifest, records missing external approvals, and never grants customer-data authorization or verifies savings. See [Phase 15](docs/PHASE15.md).

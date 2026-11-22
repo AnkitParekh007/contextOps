@@ -75,3 +75,7 @@ An isolated, dual-tenant synthetic acceptance runner now exercises frozen
 benchmarking and report provenance through authenticated API routes. The
 generated CI-only manifest explicitly marks external acceptance gates
 unverified. This is not production signoff; see [Phase 14](PHASE14.md).
+
+## Phase 15 — Release evidence and go/no-go checks (engineering increment)
+
+Adds a fail-closed pilot evidence registry, a CI-generated sanitized readiness report, and independent approval requirements for hosted infrastructure, backup restore, security/privacy, real labels, provider spend and human launch signoff. Passing synthetic CI never enables production traffic. See [Phase 15](PHASE15.md).
