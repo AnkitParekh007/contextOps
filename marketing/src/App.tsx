@@ -6,7 +6,7 @@ import {ArrowDown,ArrowDownRight,ArrowRight,ArrowUpRight,BarChart3,BrainCircuit,
   Layers3,LockKeyhole,Menu,Minus,MousePointer2,Play,RotateCcw,Route,Shield,
   ShieldAlert,ShieldCheck,SlidersHorizontal,Sparkles,Workflow,X,Zap} from "lucide-react";
 import {capabilities,faqs,githubUrl,pilotBoundary,processSteps,useCases} from "../../src/lib/marketing-content";
-import {calculateSavings} from "../../src/lib/pipeline/cost";
+import {calculateSavings} from "./cost";
 
 const docs=githubUrl+"/blob/main/README.md";
 const safeDocs=githubUrl+"/blob/main/docs/SECURITY.md";

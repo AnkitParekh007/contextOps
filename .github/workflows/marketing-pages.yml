@@ -5,7 +5,6 @@ on:
     paths:
       - "marketing/**"
       - "src/lib/marketing-content.ts"
-      - "src/lib/pipeline/cost.ts"
       - ".github/workflows/marketing-pages.yml"
   push:
     branches: [main]
