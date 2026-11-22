@@ -9,6 +9,7 @@ import {createHash} from "node:crypto";
 import {benchmarkProtocolSchema,validateFrozenPopulation} from "./protocol";
 import {loadBenchmarkPool} from "./benchmark-data";
 import {reserveExternalBudget} from "./budget";
+import {reserveOperatorExternalBudget} from "./operator-budget";
 import {compareRunQuality} from "./benchmark-insights";
 
 export const evaluationRequestSchema=z.object({
@@ -109,6 +110,10 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
       labelVocabulary:labelSet,maxSpendUsd:protocolConfig.maxExternalSpendUsd,
       inputPricePerMillion:params.candidateInputPrice,
       outputPricePerMillion:params.candidateOutputPrice,
+    });
+    await reserveOperatorExternalBudget({
+      organizationId:workspace.organizationId,workspaceId:workspace.id,
+      estimatedMaximumUsd:budget.projectedMax,
     });
   }
   const run=await db.evaluationRun.create({data:{
