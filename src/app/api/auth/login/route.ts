@@ -5,6 +5,8 @@ import { apiError, handleApiError } from "@/lib/http";
 import { originAllowed, enforceRateLimit } from "@/lib/security";
 import { loginSchema } from "@/lib/validation";
 import { setSession } from "@/lib/session";
+import {emailRequired} from "@/lib/auth/email";
+import {consumeMfaCode} from "@/lib/auth/mfa";
 
 export async function POST(request: NextRequest) {
   if (!originAllowed(request)) return apiError("Invalid request origin", 403);
@@ -13,6 +15,12 @@ export async function POST(request: NextRequest) {
     if (!await enforceRateLimit("login", body.email, 10)) return apiError("Try again later", 429);
     const user = await db.user.findUnique({ where: { email: body.email } });
     if (!user || !await compare(body.password, user.passwordHash)) return apiError("Invalid email or password", 401);
+    if(emailRequired()&&!user.emailVerifiedAt)
+      return apiError("Please verify your email before signing in",403);
+    if(user.mfaEnabledAt){
+      if(!body.mfaCode||!await consumeMfaCode(user,body.mfaCode))
+        return apiError("Valid authenticator or recovery code required",401);
+    }
     await setSession(user.id);
     return NextResponse.json({ user: { id: user.id, name: user.name, email: user.email } });
   } catch (error) { return handleApiError(error); }

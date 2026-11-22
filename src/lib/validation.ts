@@ -9,6 +9,7 @@ export const registerSchema = z.object({
     .regex(/[0-9]/, "Use at least one number"),
 });
 export const loginSchema = z.object({
+  mfaCode:z.string().trim().max(40).optional(),
   email: z.string().trim().email().transform(v => v.toLowerCase()),
   password: z.string().min(1),
 });
