@@ -1,0 +1,389 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  ANALYST
+  VIEWER
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique @db.VarChar(320)
+  name         String       @db.VarChar(100)
+  passwordHash String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  memberships  Membership[]
+  auditLogs    AuditLog[]
+}
+
+model Organization {
+  id          String       @id @default(cuid())
+  name        String       @db.VarChar(120)
+  slug        String       @unique @db.VarChar(160)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  memberships Membership[]
+  workspaces  Workspace[]
+  auditLogs   AuditLog[]
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  role           MemberRole   @default(VIEWER)
+  createdAt      DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId, role])
+}
+
+model Workspace {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String       @db.VarChar(120)
+  slug           String       @db.VarChar(160)
+  useCase        String       @db.VarChar(80)
+  provider       String       @db.VarChar(60)
+  modelName      String       @db.VarChar(120)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+    workflowConnectionRecords WorkflowConnection[]
+  importJobRecords ImportJob[]
+  executionTraceRecords ExecutionTrace[]
+  traceEventRecords TraceEvent[]
+  taskClassificationRecords TaskClassification[]
+  routingPolicyRecords RoutingPolicy[]
+  modelRouteRecords ModelRoute[]
+  evaluationDatasetRecords EvaluationDataset[]
+  evaluationRunRecords EvaluationRun[]
+  evaluationResultRecords EvaluationResult[]
+  qualityThresholdRecords QualityThreshold[]
+  costSnapshotRecords CostSnapshot[]
+  savingsReportRecords SavingsReport[]
+  shadowModeRunRecords ShadowModeRun[]
+  feedbackEventRecords FeedbackEvent[]
+  humanReviewRecords HumanReview[]
+
+  @@unique([organizationId, slug])
+  @@unique([id, organizationId])
+  @@index([organizationId])
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  actorId        String?
+  action         String       @db.VarChar(100)
+  subjectType    String       @db.VarChar(80)
+  subjectId      String
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor          User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+}
+
+model WorkflowConnection {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  name String
+    provider String
+    status String @default("DISCONNECTED")
+    config Json?
+    consentAt DateTime?
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  
+  @@index([organizationId, workspaceId])
+}
+
+model ImportJob {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  status String @default("QUEUED")
+    filename String
+    payload Json
+    total Int @default(0)
+    processed Int @default(0)
+    rejected Int @default(0)
+    attempts Int @default(0)
+    nextAttemptAt DateTime?
+    issues Json?
+    startedAt DateTime?
+    completedAt DateTime?
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  
+  @@index([organizationId, workspaceId])
+}
+
+model ExecutionTrace {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  externalTraceId String
+    timestamp DateTime
+    taskType String
+    inputText String? @db.Text
+    promptTemplate String? @db.Text
+    modelProvider String
+    modelName String
+    inputTokens Int
+    outputTokens Int
+    latencyMs Int
+    status String
+    errorMessage String? @db.Text
+    outputText String? @db.Text
+    expectedOutput String? @db.Text
+    humanLabel String? @db.Text
+    qualityScore Float?
+    businessContextRefs Json?
+    metadata Json?
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  
+  @@unique([workspaceId, externalTraceId])
+  @@index([organizationId, workspaceId])
+}
+
+model TraceEvent {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  traceId String
+    type String
+    details Json?
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  
+  @@index([organizationId, workspaceId])
+}
+
+model TaskClassification {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  traceId String @unique
+    category String
+    confidence Float
+    risk String
+    suitability String
+    reason String @db.Text
+    evaluationApproach String
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  
+  @@index([workspaceId, suitability])
+  @@index([organizationId, workspaceId])
+}
+
+model RoutingPolicy {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  name String
+    status String @default("DRAFT")
+    config Json
+    version Int @default(1)
+    evaluationRunId String?
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  
+  @@index([organizationId, workspaceId])
+}
+
+model ModelRoute {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  routingPolicyId String
+    provider String
+    model String
+    priority Int
+    settings Json?
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  
+  @@index([organizationId, workspaceId])
+}
+
+model EvaluationDataset {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  name String
+    version Int @default(1)
+    taskType String
+    count Int @default(0)
+    provenance String
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  
+  @@index([organizationId, workspaceId])
+}
+
+model EvaluationRun {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  status String @default("RUNNING")
+    provider String
+    model String
+    baselineModel String
+    sampleSize Int @default(0)
+    qualityScore Float?
+    errorRate Float?
+    averageLatencyMs Float?
+    estimatedCost Float?
+    details Json?
+    completedAt DateTime?
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  
+  @@index([organizationId, workspaceId])
+}
+
+model EvaluationResult {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  runId String
+    traceId String
+    expectedOutput String?
+    actualOutput String?
+    qualityScore Float?
+    valid Boolean
+    latencyMs Int
+    inputTokens Int
+    outputTokens Int
+    cost Float
+    error String?
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  
+  @@index([organizationId, workspaceId])
+}
+
+model QualityThreshold {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  taskType String
+    minimumQuality Float @default(0.95)
+    maximumErrorRate Float @default(0.05)
+    maximumFallbackRate Float @default(0.20)
+    maximumLatencyMs Int @default(10000)
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  
+  @@unique([workspaceId, taskType])
+  @@index([organizationId, workspaceId])
+}
+
+model CostSnapshot {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  provider String
+    model String
+    priceInputPerMillion Float
+    priceOutputPerMillion Float
+    currency String @default("USD")
+    effectiveAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  
+  @@index([organizationId, workspaceId])
+}
+
+model SavingsReport {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  title String
+    baselineCost Float
+    optimizedCost Float
+    monthlyVolume Int
+    estimatedMonthlySavings Float
+    projectedAnnualSavings Float
+    simulatedMonthlySavings Float?
+    verifiedMonthlySavings Float?
+    qualityScore Float?
+    assumptions Json
+    markdown String @db.Text
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  
+  @@index([organizationId, workspaceId])
+}
+
+model ShadowModeRun {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  policyId String
+    evaluationRunId String?
+    status String @default("SIMULATED")
+    total Int
+    routed Int
+    escalated Int
+    blocked Int
+    baselineCost Float
+    projectedCost Float
+    simulatedSavings Float
+    projectedQuality Float?
+    fallbackRate Float @default(0)
+    expectedFallbacks Float @default(0)
+    decisions Json
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  
+  @@index([organizationId, workspaceId])
+}
+
+model FeedbackEvent {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  traceId String?
+    eventType String
+    label String?
+    details Json?
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  
+  @@index([organizationId, workspaceId])
+}
+
+model HumanReview {
+  id String @id @default(cuid())
+  organizationId String
+  workspaceId String
+  traceId String
+    status String @default("PENDING")
+    reason String
+    decision String?
+    reviewerId String?
+    reviewedAt DateTime?
+  createdAt DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  
+  @@index([organizationId, workspaceId])
+}
