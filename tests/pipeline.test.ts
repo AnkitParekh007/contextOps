@@ -34,7 +34,7 @@ describe("quality-gated routing",()=>{
     expect(classify({...t,humanLabel:null}).suitability).toBe("REVIEW");
   });
   it("requires passing evaluation before cheaper routing",()=>{
-    const policy={name:"Safe",evaluationRunId:"run1",minConfidence:.9,minQuality:.95,maxLatencyMs:10000,maxFallbackRate:.2,retryLimit:1,requireApprovalForSensitive:true as const};
+    const policy={name:"Safe",evaluationRunId:"run1",minConfidence:.9,minQuality:.95,maxLatencyMs:10000,maxFallbackRate:.2,circuitBreakerErrorRate:.05,maxCostPerTaskUsd:10000,retryLimit:1,requireApprovalForSensitive:true as const};
     const c=classify(t);
     expect(routeDecision(c,policy,false)).toBe("PREMIUM");
     expect(routeDecision(c,policy,true)).toBe("CHEAP");

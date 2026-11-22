@@ -15,7 +15,7 @@ export const costInputSchema=z.object({
   baselineSuccessRate:z.number().min(0.001).max(1).default(1),
   optimizedSuccessRate:z.number().min(0.001).max(1).default(1),
 });
-export type CostInput=z.infer<typeof costInputSchema>;
+export type CostInput=z.input<typeof costInputSchema>;
 export function calculateSavings(input:CostInput){
   const v=costInputSchema.parse(input);
   const perBase=(v.averageInputTokens*v.baselineInputPrice+v.averageOutputTokens*v.baselineOutputPrice)/1000000;
