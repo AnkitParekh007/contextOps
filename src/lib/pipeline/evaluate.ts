@@ -98,23 +98,50 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
       reason:"Candidate model output failed evaluation against labeled expected result",
     }))});
   }
-  const quality=scored.filter(s=>s.valid).length/allowed.length,errorRate=errors/allowed.length;
-  const avgLatency=totalLatency/allowed.length;
+  const correct=scored.filter(s=>s.valid).length;
+  const quality=correct/allowed.length,errorRate=errors/allowed.length;
+  const successfulLatencies=results.filter(row=>!row.error).map(row=>row.latencyMs);
+  const avgLatency=successfulLatencies.length?totalLatency/successfulLatencies.length:null;
+  const confidence=wilson95(correct,allowed.length);
   const baselineAccuracy=baselineCorrect/allowed.length;
   const baselineCost=allowed.reduce((sum,{trace})=>sum+
     (trace.inputTokens*params.baselineInputPrice+trace.outputTokens*params.baselineOutputPrice)/1000000,0);
+  const rawGate=quality>=enforcedQuality&&
+    quality>=baselineAccuracy-params.maxQualityDrop&&
+    errorRate<=.05&&avgLatency!==null&&avgLatency<=10000&&
+    totalCost<baselineCost&&baselineCost>0;
+  const externalStatisticalGate=allowed.length>=30&&confidence.lower>=enforcedQuality&&
+    selection.metadata.coveredStrata===selection.metadata.totalStrata;
+  // External pilot comparisons remain limited to 10 calls, so they cannot
+  // pass a 30+ sample confidence gate and cannot authorize a routing policy.
+  const canRecommend=rawGate&&(params.provider==="MOCK"||externalStatisticalGate);
+  const syntheticOnly=allowed.every(({trace})=>trace.metadata!==null&&
+    typeof trace.metadata==="object"&&!Array.isArray(trace.metadata)&&
+    "synthetic" in trace.metadata&&trace.metadata.synthetic===true);
+  const labelScores=perLabelMetrics(scored).map(row=>({
+    ...row,label:"group-"+createHash("sha256").update(row.label).digest("hex").slice(0,10),
+  }));
   const details={
     labelCount:allowed.length,baselineAccuracy,candidateMacroF1:macroF1(scored),
+    candidateAccuracyLower95:confidence.lower,candidateAccuracyUpper95:confidence.upper,
+    candidateCostPerSuccess:costPerSuccessfulTask(totalCost,correct),
+    baselineCostPerSuccess:costPerSuccessfulTask(baselineCost,baselineCorrect),
+    candidateMedianLatencyMs:percentile(successfulLatencies,.5),
+    candidateP95LatencyMs:percentile(successfulLatencies,.95),
+    providerErrorCount:errors,perLabelMetrics:labelScores,
+    sampling:selection.metadata,provenance:syntheticOnly?"synthetic_seed":"unverified_or_mixed",
+    statisticalValidation:params.provider!=="MOCK"&&externalStatisticalGate,
+    statisticalCaution:"Wilson score assumes independent Bernoulli outcomes. Deterministic stratification and small samples are diagnostic, not proof of representative production quality.",
     minimumQuality:enforcedQuality,maxQualityDrop:params.maxQualityDrop,baselineCost,candidateCost:totalCost,
     candidateInputPrice:params.candidateInputPrice,candidateOutputPrice:params.candidateOutputPrice,
     baselineInputPrice:params.baselineInputPrice,baselineOutputPrice:params.baselineOutputPrice,
     fallbackRate:1-quality,manualReviewRequired:invalid.length>0,provider:params.provider,
-    canRecommend:quality>=enforcedQuality&&quality>=baselineAccuracy-params.maxQualityDrop&&errorRate<=0.05&&avgLatency<=10000&&totalCost<baselineCost&&baselineCost>0,
+    canRecommend,rawQualityGate:rawGate,
     source:"labeled_test_set",externalConsent:params.consentExternal,
   };
   await db.evaluationDataset.create({data:{organizationId:workspace.organizationId,workspaceId:workspace.id,
     name:"Labeled pilot benchmark",taskType:"ROUTINE_CLASSIFICATION_OR_EXTRACTION",
-    provenance:"customer_supplied_or_synthetic_labels",count:allowed.length}});
+    provenance:syntheticOnly?"synthetic_seed":"unverified_or_mixed",count:allowed.length}});
   await db.costSnapshot.createMany({data:[
     {organizationId:workspace.organizationId,workspaceId:workspace.id,provider:"BASELINE",
       model:workspace.modelName,priceInputPerMillion:params.baselineInputPrice,
@@ -129,6 +156,7 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
   }});
   await db.auditLog.create({data:{organizationId:workspace.organizationId,actorId,
     subjectType:"EvaluationRun",subjectId:run.id,action:"EVALUATION_COMPLETED",
-    metadata:{provider:params.provider,model:params.model,samples:allowed.length,externalConsent:params.consentExternal}}});
+    metadata:{provider:params.provider,model:params.model,samples:allowed.length,externalConsent:params.consentExternal,
+      samplingMode:params.samplingMode,samplingFingerprint:selection.metadata.fingerprint}}});
   return {id:run.id,qualityScore:quality,errorRate,averageLatencyMs:avgLatency,estimatedCost:totalCost,details};
 }
