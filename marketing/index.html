@@ -4,6 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0e171c" />
+    <script>
+      /* Apply persisted color scheme before CSS paints to avoid a theme flash. */
+      (function(){
+        var preference="system";
+        try {
+          var value=window.localStorage.getItem("contextops-theme");
+          if(value==="light"||value==="dark"||value==="system")preference=value;
+        } catch(e) {}
+        var dark=window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        var resolved=preference==="system"?(dark?"dark":"light"):preference;
+        document.documentElement.dataset.themePreference=preference;
+        document.documentElement.dataset.theme=resolved;
+        document.documentElement.style.colorScheme=resolved;
+      })();
+    </script>
+
     <meta name="robots" content="index,follow" />
     <meta name="description" content="ContextOps AI analyzes expensive AI workflows, benchmarks cheaper model alternatives, and simulates safer routing with quality gates. Open-source controlled-pilot software." />
     <meta name="keywords" content="AI cost optimization, LLM cost management, model evaluation, AI workflow analysis, shadow mode, model routing, ContextOps AI" />
