@@ -28,7 +28,7 @@ const user=await req("/api/auth/register",{method:"POST",body:{
 assert.ok(user.user.id);
 const org=await req("/api/organizations",{method:"POST",body:{
   companyName:"Synthetic Pilot "+nonce,
-  workspace:{name:"Support Triage",useCase:"SUPPORT_CLASSIFICATION",provider:"MOCK",modelName:"mock-premium"},
+  workspace:{name:"Support Triage",useCase:"SUPPORT_CLASSIFICATION",provider:"OTHER",modelName:"mock-premium"},
 }});
 const workspaceId=org.organization.workspace.id,api="/api/workspaces/"+workspaceId;
 let form=new FormData();
@@ -82,7 +82,7 @@ assert.ok(markdown.includes("SIMULATION ONLY"));
 const actions=await req(api+"/audit");
 assert.ok(actions.events.length>0);
 const wrongOrg=await req("/api/organizations",{method:"POST",body:{
-  companyName:"Other Org "+nonce,workspace:{name:"Other",useCase:"OTHER",provider:"MOCK",modelName:"mock-premium"},
+  companyName:"Other Org "+nonce,workspace:{name:"Other",useCase:"OTHER",provider:"OTHER",modelName:"mock-premium"},
 }});
 assert.ok(wrongOrg.organization.id!==org.organization.id);
 console.log("Full pilot smoke PASS: asynchronous redacted import, demo, classification, model benchmark, approved policy, shadow, report, audit");
