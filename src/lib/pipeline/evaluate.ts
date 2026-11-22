@@ -64,6 +64,17 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
     }
   }
   await db.evaluationResult.createMany({data:results});
+  const invalid=results.filter(r=>!r.valid);
+  if(invalid.length){
+    const reviewed=new Set((await db.humanReview.findMany({where:{
+      organizationId:workspace.organizationId,workspaceId:workspace.id,
+      traceId:{in:invalid.map(r=>r.traceId)},status:"PENDING"},
+      select:{traceId:true}})).map(item=>item.traceId));
+    await db.humanReview.createMany({data:invalid.filter(r=>!reviewed.has(r.traceId)).map(r=>({
+      organizationId:workspace.organizationId,workspaceId:workspace.id,traceId:r.traceId,
+      reason:"Candidate model output failed evaluation against labeled expected result",
+    }))});
+  }
   const quality=scored.filter(s=>s.valid).length/allowed.length,errorRate=errors/allowed.length;
   const avgLatency=totalLatency/allowed.length;
   const baselineAccuracy=baselineCorrect/allowed.length;
@@ -74,7 +85,7 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
     minimumQuality:enforcedQuality,maxQualityDrop:params.maxQualityDrop,baselineCost,candidateCost:totalCost,
     candidateInputPrice:params.candidateInputPrice,candidateOutputPrice:params.candidateOutputPrice,
     baselineInputPrice:params.baselineInputPrice,baselineOutputPrice:params.baselineOutputPrice,
-    fallbackRate:1-quality,manualReviewRequired:false,provider:params.provider,
+    fallbackRate:1-quality,manualReviewRequired:invalid.length>0,provider:params.provider,
     canRecommend:quality>=enforcedQuality&&quality>=baselineAccuracy-params.maxQualityDrop&&errorRate<=0.05&&avgLatency<=10000&&totalCost<baselineCost&&baselineCost>0,
     source:"labeled_test_set",externalConsent:params.consentExternal,
   };

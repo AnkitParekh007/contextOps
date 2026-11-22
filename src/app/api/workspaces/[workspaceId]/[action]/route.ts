@@ -219,9 +219,12 @@ export async function POST(request:NextRequest,{params}:Context){
       const pass=details.canRecommend===true&&(run.qualityScore??0)>=input.minQuality&&
         (run.errorRate??1)<=input.circuitBreakerErrorRate&&
         (1-(run.qualityScore??0))<=input.maxFallbackRate&&(run.averageLatencyMs??Infinity)<=input.maxLatencyMs;
+      const existingPolicy=await db.routingPolicy.findFirst({where:{
+        organizationId:org,workspaceId,name:input.name},orderBy:{version:"desc"}});
       const policy=await db.routingPolicy.create({data:{
         workspaceId,organizationId:org,name:input.name,evaluationRunId:run.id,
         status:pass?"APPROVED_FOR_SIMULATION":"DRAFT",
+        version:(existingPolicy?.version??0)+1,
         config:input,
       }});
       await db.modelRoute.createMany({data:[
@@ -281,7 +284,15 @@ export async function POST(request:NextRequest,{params}:Context){
       if(!shadow)return apiError("Run shadow mode before generating a report",422);
       const policy=await db.routingPolicy.findFirst({where:{id:shadow.policyId,workspaceId,organizationId:org}});
       const evaluation=await db.evaluationRun.findFirst({where:{id:shadow.evaluationRunId??"",workspaceId,organizationId:org}});
-      const orgRecord=await db.organization.findUnique({where:{id:org}});
+      const [orgRecord,categoryGroups,auditHistory]=await Promise.all([
+        db.organization.findUnique({where:{id:org}}),
+        db.taskClassification.groupBy({by:["category"],where:{workspaceId,organizationId:org},
+          _count:{_all:true}}),
+        db.auditLog.findMany({where:{organizationId:org,OR:[
+          {subjectId:workspaceId},{metadata:{path:["workspaceId"],equals:workspaceId}}]},
+          select:{action:true,createdAt:true,subjectType:true},
+          orderBy:{createdAt:"desc"},take:12}),
+      ]);
       const monthlyVolume=body.monthlyVolume??shadow.total;
       const factor=monthlyVolume/Math.max(1,shadow.total);
       const estimate=shadow.simulatedSavings*factor;
@@ -290,6 +301,9 @@ export async function POST(request:NextRequest,{params}:Context){
         excludedOverhead:"Fees and infrastructure not included in sample simulation",
         tokenCounts:"Candidate requests estimated using baseline token counts",
         fallback:"Candidate quality is extrapolated from labeled evaluation sample",
+        expectedFallbackRate:shadow.fallbackRate,
+        expectedFallbackCalls:shadow.expectedFallbacks,
+        evalBaselineQuality:((evaluation?.details??{}) as Record<string,unknown>).baselineAccuracy??null,
         verified:false,
       };
       const markdown=buildMarkdown({organization:orgRecord?.name??"Organization",workspace:workspace.name,
@@ -298,6 +312,8 @@ export async function POST(request:NextRequest,{params}:Context){
         simulatedSavings:shadow.simulatedSavings,quality:evaluation?.qualityScore??null,
         eligible:shadow.routed,escalated:shadow.escalated,blocked:shadow.blocked,
         model:evaluation?.model??"Unknown",policy:policy?.name??"Unspecified",
+        categories:categoryGroups.map(c=>c.category+": "+c._count._all+" traces"),
+        auditTrail:auditHistory.map(a=>a.createdAt.toISOString()+" "+a.action+" ("+a.subjectType+")"),
         assumptions:Object.entries(assumptions).map(([k,v])=>k+": "+String(v))});
       const report=await db.savingsReport.create({data:{organizationId:org,workspaceId,
         title:"AI Cost & Quality Assessment",baselineCost:shadow.baselineCost,

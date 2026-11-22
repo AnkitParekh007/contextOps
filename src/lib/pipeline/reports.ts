@@ -2,6 +2,7 @@ export function buildMarkdown(input:{
   organization:string;workspace:string;date:string;sampleSize:number;taskVolume:number;
   baselineCost:number;candidateCost:number;simulatedSavings:number;quality:number|null;
   eligible:number;escalated:number;blocked:number;model:string;policy:string;assumptions:string[];
+  categories:string[];auditTrail:string[];
 }):string {
   const safe=(str:string)=>str.replace(/[\r\n|<>]/g," ").slice(0,150);
   const money=(num:number)=>"$"+num.toFixed(2);
@@ -27,6 +28,10 @@ export function buildMarkdown(input:{
     "- Simulated sample savings: "+money(input.simulatedSavings),
     "- Verified savings: NOT AVAILABLE",
     "",
+    "## Task categories identified",
+    "",
+    ...(input.categories.length?input.categories.map(s=>"- "+safe(s)):["- Not available"]),
+    "",
     "## Routing and quality",
     "",
     "- Candidate model: "+safe(input.model),
@@ -47,6 +52,10 @@ export function buildMarkdown(input:{
     "- Pricing excludes provider discounts, caching and data transfer unless explicitly modeled.",
     "- Sensitive or unsupported tasks require escalation and human approval.",
     "- Customer security, legal and provider processing approvals are required for real-data pilots.",
+    "",
+    "## Audit trail (recent workflow events)",
+    "",
+    ...(input.auditTrail.length?input.auditTrail.map(s=>"- "+safe(s)):["- No prior audit events"]),
     "",
     "## Recommended next steps",
     "",
