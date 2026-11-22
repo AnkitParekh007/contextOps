@@ -62,3 +62,34 @@ test("reduced motion keeps sections visible and disables decorative motion",asyn
   const decorative=await page.locator(".signal-moving-particles").first().evaluate(el=>getComputedStyle(el).display);
   expect(decorative).toBe("none");
 });
+
+test("applies reference-inspired cobalt palette without lime accents",async({page})=>{
+  await page.goto("/");
+  await expect(page.locator(".hero-actions .btn-primary")).toHaveCSS("background-color","rgb(5, 47, 237)");
+  await expect(page.locator(".brand-mark").first()).toHaveCSS("background-color","rgb(5, 47, 237)");
+  await expect(page.locator(".routing-illustration")).toBeVisible();
+  await expect(page.getByRole("heading",{name:/One workload. Multiple right answers/})).toBeVisible();
+  const cobalt=await page.locator(".routing-connections .routing-wire-flow").first().evaluate(
+    element=>getComputedStyle(element).animationName
+  );
+  expect(cobalt).toContain("routing-stream");
+});
+
+test("maintains cobalt legibility and identity in dark theme",async({page})=>{
+  await page.goto("/");
+  await page.getByRole("button",{name:/Choose appearance/}).click();
+  await page.getByRole("button",{name:"Dark",exact:true}).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme","dark");
+  await expect(page.locator(".hero-actions .btn-primary")).toHaveCSS("background-color","rgb(5, 47, 237)");
+  await expect(page.locator(".routing-illustration")).toBeVisible();
+});
+
+test("reduced motion stops the routing stream without hiding the information",async({page})=>{
+  await page.emulateMedia({reducedMotion:"reduce"});
+  await page.goto("/");
+  const motion=await page.locator(".routing-connections .routing-wire-flow").first().evaluate(
+    element=>getComputedStyle(element).animationName
+  );
+  expect(motion).toBe("none");
+  await expect(page.getByText("Quality gates before model changes")).toBeVisible();
+});

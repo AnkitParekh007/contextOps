@@ -3,6 +3,7 @@ import type {ReactNode,PointerEvent} from "react";
 import {ThemeControl} from "./components/ThemeControl";
 import {MotionJourney} from "./components/MotionJourney";
 import {HeroSignals} from "./components/HeroSignals";
+import {RoutingStream} from "./components/RoutingStream";
 import {useReveal} from "./hooks/useReveal";
 import {useCountUp} from "./hooks/useCountUp";
 import {ArrowDown,ArrowDownRight,ArrowRight,ArrowUpRight,BarChart3,BrainCircuit,
@@ -195,7 +196,7 @@ function UseCases(){
 function Range({label,value,min,max,step=1,suffix="",onChange}:{label:string;value:number;min:number;max:number;step?:number;suffix?:string;onChange:(v:number)=>void}){
   const fill=(value-min)/(max-min)*100;
   return <label className="range"><span className="range-head"><span>{label}</span><strong>{numberFmt(value)}{suffix}</strong></span>
-    <input type="range" min={min} max={max} step={step} value={value} onChange={e=>onChange(Number(e.currentTarget.value))} style={{background:`linear-gradient(to right,#80A4EC ${fill}%,#293B53 ${fill}%)`}}/></label>;
+    <input type="range" min={min} max={max} step={step} value={value} onChange={e=>onChange(Number(e.currentTarget.value))} style={{background:`linear-gradient(to right,#052FED ${fill}%,var(--range-unfilled) ${fill}%)`}}/></label>;
 }
 function CalculatorSection(){
   const [volume,setVolume]=useState(100000);
@@ -272,5 +273,5 @@ function Footer(){
 }
 export default function App(){
   useReveal();
-  return <div className="site"><a href="#main" className="skip-link">Skip to content</a><Header/><main id="main"><Hero/><Why/><Capabilities/><Journey/><UseCases/><CalculatorSection/><Trust/><FAQ/><BottomCTA/></main><Footer/></div>;
+  return <div className="site"><a href="#main" className="skip-link">Skip to content</a><Header/><main id="main"><Hero/><Why/><RoutingStream/><Capabilities/><Journey/><UseCases/><CalculatorSection/><Trust/><FAQ/><BottomCTA/></main><Footer/></div>;
 }
