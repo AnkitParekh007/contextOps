@@ -77,6 +77,8 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
   const [authorized,setAuthorized]=useState(false),[retention,setRetention]=useState(false);
   const [provider,setProvider]=useState("MOCK"),[model,setModel]=useState("mock-efficient");
   const [consent,setConsent]=useState(false),[evalCount,setEvalCount]=useState(30);
+  const [samplingMode,setSamplingMode]=useState<"STRATIFIED"|"CHRONOLOGICAL">("STRATIFIED");
+  const [samplingSeed,setSamplingSeed]=useState("pilot-v1");
   const [quality,setQuality]=useState(.95),[baselineIn,setBaselineIn]=useState(2);
   const [baselineOut,setBaselineOut]=useState(10),[candidateIn,setCandidateIn]=useState(.1);
   const [candidateOut,setCandidateOut]=useState(.5),[monthlyVolume,setMonthlyVolume]=useState(100000);
@@ -241,24 +243,41 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
           <label className="text-sm font-semibold">Candidate model<Input className="mt-2" value={model} onChange={e=>setModel(e.target.value)} placeholder="Exact provider model ID"/></label>
           <NumberField label="Maximum labeled samples (5–50)" value={evalCount} onChange={setEvalCount} min={5} max={50}/>
           <NumberField label="Required quality (0.50–1.00)" value={quality} onChange={setQuality} min={.5} max={1} step={.01}/>
+          <label className="text-sm font-semibold">Benchmark sample method
+            <select className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-4"
+              value={samplingMode} onChange={e=>setSamplingMode(e.target.value as "STRATIFIED"|"CHRONOLOGICAL")}>
+              <option value="STRATIFIED">Seeded stratified label sampling</option>
+              <option value="CHRONOLOGICAL">Earliest eligible (legacy, biased)</option>
+            </select></label>
+          <label className="text-sm font-semibold">Reproducible sampling seed
+            <Input className="mt-2" maxLength={64} value={samplingSeed}
+              onChange={e=>setSamplingSeed(e.target.value)} placeholder="pilot-v1"/></label>
           <NumberField label="Baseline input $/1M" value={baselineIn} onChange={setBaselineIn}/>
           <NumberField label="Baseline output $/1M" value={baselineOut} onChange={setBaselineOut}/>
           <NumberField label="Candidate input $/1M" value={candidateIn} onChange={setCandidateIn}/>
           <NumberField label="Candidate output $/1M" value={candidateOut} onChange={setCandidateOut}/>
         </div>
         {provider!=="MOCK"&&<label className="flex gap-3 text-sm"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} className="accent-brand"/> I explicitly approve sending these sanitized labeled samples to this external provider, including any resulting API charges.</label>}
-        <Notice>Prices are user-provided assumptions, not automatically verified provider prices. No ground truth is included in candidate prompts. Free-text answers require human review.</Notice>
+        <Notice>Prices are user-provided assumptions, not verified invoices. Benchmark samples are deterministic and may be unrepresentative; 95% Wilson intervals are diagnostic, not proof of production parity. External runs remain capped at 10 requests and cannot authorize routing without larger independent validation. No ground truth is sent in candidate prompts.</Notice>
         {button("Run candidate evaluation",()=>{void invoke("evaluations",{
           provider,model,consentExternal:provider==="MOCK"?false:consent,maximumSamples:evalCount,
+          samplingMode,samplingSeed,
           minimumQuality:quality,baselineInputPrice:baselineIn,baselineOutputPrice:baselineOut,
           candidateInputPrice:candidateIn,candidateOutputPrice:candidateOut,
-        });},!model||provider!=="MOCK"&&!consent)}
+        });},!model||!/^[A-Za-z0-9_-]{1,64}$/.test(samplingSeed)||provider!=="MOCK"&&!consent)}
       </Card>
       <h2 className="text-lg font-bold">Recent evaluation runs</h2>
-      <Table headers={["Candidate","Status","Test-set quality","Errors","Sample","Cost","Routing gate"]} rows={items("runs").map(r=>[
-        String(r.provider)+" / "+String(r.model),String(r.status),pct(r.qualityScore),pct(r.errorRate),
-        num(r.sampleSize),money(r.estimatedCost),
-        ((r.details??{}) as Json).canRecommend===true?"Passed":"Not passed"])}/>
+      <Table headers={["Candidate","Quality","Wilson lower 95%","Cost / success","Sample / seed","Coverage","Routing gate"]} rows={items("runs").map(r=>{
+        const details=(r.details??{}) as Json;
+        const sampling=(details.sampling??{}) as Json;
+        return [
+          String(r.provider)+" / "+String(r.model),pct(r.qualityScore),
+          pct(details.candidateAccuracyLower95),money(details.candidateCostPerSuccess),
+          num(r.sampleSize)+" / "+String(sampling.seed??"legacy"),
+          String(sampling.coveredStrata??"—")+"/"+String(sampling.totalStrata??"—")+" strata",
+          details.canRecommend===true?"Offline gate passed":"Not approved",
+        ];
+      })}/>
     </>}
     {section==="policies"&&<>
       <Card className="space-y-5 p-7"><h2 className="text-lg font-bold">Create a simulation-only policy</h2>

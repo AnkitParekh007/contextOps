@@ -32,7 +32,7 @@ export async function evaluate(workspace:{id:string;organizationId:string;modelN
   const cappedSamples=params.provider==="MOCK"?params.maximumSamples:Math.min(params.maximumSamples,10);
   const labels=await db.taskClassification.findMany({where:{workspaceId:workspace.id,organizationId:workspace.organizationId,
     suitability:"ELIGIBLE",category:{in:["ROUTINE_CLASSIFICATION","STRUCTURED_EXTRACTION"]}},
-    take:10000,orderBy:[{createdAt:"asc"},{traceId:"asc"}]});
+    take:10000,orderBy:{createdAt:"asc"}});
   if(labels.length<5)throw Error("Need at least 5 labeled, eligible traces. Run analysis first.");
   const candidates=await db.executionTrace.findMany({where:{
     id:{in:labels.map(l=>l.traceId)},workspaceId:workspace.id,organizationId:workspace.organizationId,

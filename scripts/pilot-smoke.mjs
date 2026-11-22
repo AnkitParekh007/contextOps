@@ -82,10 +82,16 @@ assert.equal(analyzed.analyzed,501);
 assert.ok(analyzed.eligible>0);
 const evalRes=await req(api+"/evaluations",{method:"POST",body:{
   provider:"MOCK",model:"mock-efficient",maximumSamples:30,minimumQuality:.9,
+  samplingMode:"CHRONOLOGICAL",samplingSeed:"ci-phase12",
   baselineInputPrice:2,baselineOutputPrice:10,candidateInputPrice:.1,candidateOutputPrice:.5,
 }});
 assert.ok(evalRes.run.qualityScore>=.9,JSON.stringify(evalRes));
 assert.equal(evalRes.run.details.canRecommend,true);
+assert.equal(evalRes.run.details.sampling.mode,"CHRONOLOGICAL");
+assert.equal(evalRes.run.details.sampling.selectedCount,30);
+assert.ok(evalRes.run.details.sampling.fingerprint.length===64);
+assert.ok(evalRes.run.details.candidateAccuracyLower95<evalRes.run.qualityScore);
+assert.ok(evalRes.run.details.candidateCostPerSuccess>0);
 const policy=await req(api+"/policies",{method:"POST",body:{
   name:"Pilot safe policy",evaluationRunId:evalRes.run.id,
   minConfidence:.9,minQuality:.9,maxLatencyMs:10000,maxFallbackRate:.2,
