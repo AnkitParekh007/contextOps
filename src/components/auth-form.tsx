@@ -41,6 +41,10 @@ export function AuthForm({ mode }: { mode: "register" | "login" }) {
     </label>}
     {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     <Button disabled={busy} className="w-full" type="submit">{busy?"Working…":mode==="register"?"Create your account":"Sign in"} <ArrowRight size={17}/></Button>
+    {mode==="login"&&<div className="flex flex-wrap justify-center gap-4 text-xs font-semibold">
+      <Link href="/forgot-password" className="text-brand">Forgot password?</Link>
+      <Link href="/check-email" className="text-brand">Resend verification</Link>
+    </div>}
     <p className="text-center text-sm text-slate-500">{mode==="register"?"Already have an account?":"New to ContextOps?"} <Link className="font-semibold text-brand hover:underline" href={mode==="register"?"/login":"/register"}>{mode==="register"?"Sign in":"Get started"}</Link></p>
   </form>;
 }
