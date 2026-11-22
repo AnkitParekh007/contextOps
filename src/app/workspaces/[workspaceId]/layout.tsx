@@ -40,7 +40,7 @@ export default async function WorkspaceLayout({children,params}:{
           <Icon size={17} className="shrink-0"/>{label}</Link>)}
       </nav>
       <div className="mt-7 flex items-center justify-between border-t border-slate-100 pt-5">
-        <span className="inline-flex items-center gap-1.5 text-xs text-brand"><ShieldCheck size={15}/> Pilot environment</span>
+        <Link href="/account/security" className="inline-flex items-center gap-1.5 text-xs text-brand hover:underline"><ShieldCheck size={15}/> Account security</Link>
         <LogoutButton/>
       </div>
     </aside>
