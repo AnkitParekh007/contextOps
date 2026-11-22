@@ -164,3 +164,7 @@ The automated release-readiness check is **blocked by default**. It validates th
 ## Phase 17 — Private pilot operational validation
 
 A fail-closed, read-only operational probe now checks HTTPS target approval, operator endpoint privacy, worker/queue readiness, external benchmark disablement and repeated health sampling. CI evidence remains synthetic-only and does not authorize deployment or customer data. See [Phase 17](docs/PHASE17.md).
+
+## Phase 18 — Hosted deployment configuration preflight
+
+`npm run preflight:hosted` validates the private hosted deployment configuration without contacting cloud services, displaying credentials, or granting a release. CI runs synthetic, offline validation cases. **CONFIG_READY_ONLY is not deployment approval.** See [Phase 18](docs/PHASE18.md).
