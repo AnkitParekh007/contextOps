@@ -160,3 +160,7 @@ See [Phase 14](docs/PHASE14.md).
 ## Phase 15: pilot release evidence
 
 The automated release-readiness check is **blocked by default**. It validates the synthetic acceptance manifest, records missing external approvals, and never grants customer-data authorization or verifies savings. See [Phase 15](docs/PHASE15.md).
+
+## Phase 17 — Private pilot operational validation
+
+A fail-closed, read-only operational probe now checks HTTPS target approval, operator endpoint privacy, worker/queue readiness, external benchmark disablement and repeated health sampling. CI evidence remains synthetic-only and does not authorize deployment or customer data. See [Phase 17](docs/PHASE17.md).
