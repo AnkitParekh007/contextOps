@@ -54,6 +54,7 @@ jobs:
       - name: Verify GitHub Pages artifact
         run: |
           test -f marketing/dist/index.html
+          test -f marketing/dist/demo/index.html
           test -f marketing/dist/favicon.svg
           test -f marketing/dist/sitemap.xml
           grep -q 'contextOps/assets/' marketing/dist/index.html
