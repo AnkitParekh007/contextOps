@@ -14,6 +14,8 @@
     "smoke:operations": "node scripts/phase17-staging-acceptance.mjs",
     "preflight:hosted": "node scripts/phase18-deployment-preflight.mjs",
     "test:preflight": "node --test scripts/phase18-deployment-preflight.test.mjs",
+    "test:staging-evidence": "node --test scripts/phase19-staging-evidence.test.mjs",
+    "verify:staging": "node scripts/phase19-staging-evidence.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
