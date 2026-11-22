@@ -47,6 +47,8 @@ jobs:
         run: npm run typecheck
       - name: Unit tests
         run: npm test
+      - name: Phase 18 offline deployment preflight tests
+        run: npm run test:preflight
       - name: Lint
         run: npm run lint
       - name: Build
