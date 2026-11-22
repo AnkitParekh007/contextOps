@@ -65,6 +65,11 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
   });
   const [busy,setBusy]=useState(false),[message,setMessage]=useState(""),[result,setResult]=useState<Json|null>(null);
   const [file,setFile]=useState<File|null>(null);
+  const [preview,setPreview]=useState<Json|null>(null);
+  const [mapping,setMapping]=useState<Record<string,string>>({});
+  const schemaColumns=["external_trace_id","timestamp","task_type","input_text","prompt_template",
+    "model_provider","model_name","input_tokens","output_tokens","latency_ms","status",
+    "error_message","output_text","expected_output","human_label","quality_score"];
   const [authorized,setAuthorized]=useState(false),[retention,setRetention]=useState(false);
   const [provider,setProvider]=useState("MOCK"),[model,setModel]=useState("mock-efficient");
   const [consent,setConsent]=useState(false),[evalCount,setEvalCount]=useState(30);
@@ -139,13 +144,35 @@ export function WorkspaceConsole({workspaceId,section}:WorkspaceConsoleProps){
         <a href={api+"/template"} className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-brand hover:underline"><Download size={15}/> Download CSV template</a>
         <form className="mt-6 space-y-4" onSubmit={async e=>{e.preventDefault();if(!file)return;const form=new FormData();
           form.set("file",file);form.set("authorized",String(authorized));form.set("retentionAcknowledged",String(retention));
+          form.set("mapping",JSON.stringify(mapping));
           await invoke("imports",form);}}>
           <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-canvas p-8 text-center text-sm text-slate-500 hover:border-brand">
             <UploadCloud size={28} className="text-brand"/>{file?file.name:"Choose an authorized trace export"}
-            <input required type="file" className="sr-only" accept=".csv,.json,.jsonl,.ndjson" onChange={e=>setFile(e.target.files?.[0]??null)}/>
+            <input required type="file" className="sr-only" accept=".csv,.json,.jsonl,.ndjson" onChange={e=>{setFile(e.target.files?.[0]??null);setPreview(null);setMapping({});}}/>
           </label>
           <label className="flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={authorized} onChange={e=>setAuthorized(e.target.checked)} className="mt-1 accent-brand"/> I am authorized to upload and process these workflow traces.</label>
           <label className="flex items-start gap-3 text-sm text-ink"><input type="checkbox" checked={retention} onChange={e=>setRetention(e.target.checked)} className="mt-1 accent-brand"/> I understand only best-effort redacted content is retained for analysis; the importer may not catch every sensitive value.</label>
+          
+          <div className="flex items-center gap-3"><Button type="button" variant="secondary" disabled={busy||!file||!authorized}
+            onClick={async()=>{if(!file)return;const form=new FormData();form.set("file",file);
+              form.set("authorized",String(authorized));form.set("mapping",JSON.stringify(mapping));
+              const value=await invoke("preview",form);if(value)setPreview(value);
+            }}><UploadCloud size={16}/> Preview redacted sample</Button>
+            <span className="text-xs text-slate-500">Map your columns before importing.</span></div>
+          {preview&&<div className="space-y-4 rounded-2xl border border-slate-200 p-5">
+            <div><h3 className="font-bold">Detected column mapping</h3>
+              <p className="mt-1 text-xs text-slate-500">Leave on auto-detect when a header already matches the canonical name or common alias.</p></div>
+            <div className="grid gap-3 sm:grid-cols-2">{(preview.columns as string[]??[]).map((column,i)=>
+              <label key={i} className="text-xs font-semibold">{column}
+                <select className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-2.5"
+                  value={mapping[column.toLowerCase().replace(/[^a-z0-9]+/g,"_")]??""}
+                  onChange={e=>{setMapping(old=>({...old,[column.toLowerCase().replace(/[^a-z0-9]+/g,"_")]:e.target.value}));}}>
+                  <option value="">Auto-detect</option>{schemaColumns.map(target=><option key={target} value={target}>{target}</option>)}
+                </select>
+              </label>)}</div>
+            <p className="text-xs text-slate-500">{num(preview.valid)} valid of {num(preview.total)} records. Preview text is redacted before rendering.</p>
+            <pre className="max-h-48 overflow-auto rounded-xl bg-canvas p-4 text-xs">{JSON.stringify(preview.redactedPreview,null,2)}</pre>
+          </div>}
           <Notice>No third-party model receives uploaded content during ingestion. External evaluations require separate explicit consent. Avoid regulated or highly confidential data until a formal DLP review is complete.</Notice>
           <Button disabled={busy||!file||!authorized||!retention} type="submit">{busy?"Queueing…":"Queue secure import"} <ArrowRight size={16}/></Button>
         </form>
