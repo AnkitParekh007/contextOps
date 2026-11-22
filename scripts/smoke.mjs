@@ -23,7 +23,7 @@ async function call(path, { method = "GET", body, cookie } = {}) {
   return { status: res.status, json, cookie: res.headers.get("set-cookie")?.split(";")[0] };
 }
 const a = await call("/api/auth/register", {
-  method: "POST", body: { name: "Synthetic Owner", email: "owner-" + nonce + "@example.test", password },
+  method: "POST", body: { name: "Synthetic Owner", email: "owner-" + nonce + "@example.test", password, inviteCode: process.env.PILOT_INVITE_CODE },
 });
 assert.equal(a.status, 201, JSON.stringify(a.json));
 assert.ok(a.cookie?.startsWith("contextops_session="));
@@ -47,7 +47,7 @@ assert.equal(workspace.status, 200);
 assert.equal(workspace.json.workspaces.length, 1);
 
 const b = await call("/api/auth/register", {
-  method: "POST", body: { name: "Synthetic Outsider", email: "outsider-" + nonce + "@example.test", password },
+  method: "POST", body: { name: "Synthetic Outsider", email: "outsider-" + nonce + "@example.test", password, inviteCode: process.env.PILOT_INVITE_CODE },
 });
 assert.equal(b.status, 201, JSON.stringify(b.json));
 assert.equal((await call("/api/organizations/" + orgId + "/workspaces", { cookie: b.cookie })).status, 404);

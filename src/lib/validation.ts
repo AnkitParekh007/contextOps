@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const registerSchema = z.object({
   name: z.string().trim().min(2).max(100),
+  inviteCode: z.string().trim().max(256).optional(),
   email: z.string().trim().email().max(320).transform(v => v.toLowerCase()),
   password: z.string().min(12).max(128).regex(/[A-Z]/, "Use at least one uppercase letter")
     .regex(/[a-z]/, "Use at least one lowercase letter")

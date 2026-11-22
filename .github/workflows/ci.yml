@@ -30,6 +30,7 @@ jobs:
       REDIS_URL: redis://localhost:6379
       AUTH_SECRET: ci_only_change_me_32_character_secret_00001
       APP_URL: http://localhost:3000
+      PILOT_INVITE_CODE: ci_only_pilot_invitation_code_nonproduction_00001
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
