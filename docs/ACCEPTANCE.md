@@ -33,3 +33,7 @@ Run `npm run typecheck && npm test && npm run lint && npm run build`, then `npm 
 - Sensitive and unsupported tasks default to review/premium, not cheap routing.
 - A failed or unvalidated candidate cannot be promoted to a simulation-approved policy.
 - Scenario cost must charge both the cheap attempt and premium fallback.
+
+## Phase 13 engineering acceptance
+
+CI additionally builds the production Docker image and boots the worker to catch missing runtime imports. A read-only `hosted-acceptance.mjs` probe validates health/readiness, rejects unauthorized access to `/api/ops/status`, and verifies an authorized aggregate status. In CI a synthetic localhost-only exemption permits HTTP; the real operator probe requires exact configured HTTPS origin. These checks do not replace live Railway activation, managed backup restore, security review or a staged synthetic pilot.

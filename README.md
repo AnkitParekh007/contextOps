@@ -144,3 +144,7 @@ Evaluate with seeded label-stratified samples, uncertainty diagnostics and model
 ### Benchmark governance (Phase 12)
 
 In an authenticated workspace, open **Benchmark governance** to preregister and freeze a labeled holdout, inspect evidence fingerprints, run offline fallback stress scenarios and record self-reported cost aggregates. External model execution remains opt-in and disabled by default. See [Phase 12](docs/PHASE12.md).
+
+## Phase 13 — Hosted pilot operational readiness
+
+The production worker image now packages its shared runtime source. The application provides a private aggregate `/api/ops/status` endpoint and read-only HTTPS health acceptance tooling. Managed hosting is **not** activated by these changes. See [Phase 13 runbook](docs/PHASE13.md).

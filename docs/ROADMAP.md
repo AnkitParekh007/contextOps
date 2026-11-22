@@ -64,3 +64,7 @@ Seeded stratified label sampling, auditable selection fingerprints, Wilson diagn
 ### Phase 12 completion increment
 
 Frozen benchmark preregistration, disjoint holdout fingerprints, tenant-scoped governance, capped external-provider preflight (disabled by default), read-only failure stress and self-reported aggregate bill comparisons are implemented. Operator-financed deployment, actual customer invoice verification, independently adjudicated labels and representative statistical acceptance remain **blocked by external evidence/permissions**, not achieved by source code changes.
+
+## Phase 13 — Hosted Pilot Activation (started)
+
+Production worker image packaging, protected aggregate operator diagnostics and a read-only HTTPS hosted acceptance probe are implemented for CI. Real Railway services, backup/restore evidence, alerts, privacy approval and live synthetic signoff remain pending. See [Phase 13](PHASE13.md).
