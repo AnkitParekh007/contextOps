@@ -51,6 +51,8 @@ jobs:
         run: npm run test:preflight
       - name: Phase 19 offline hosted evidence trust-boundary tests
         run: npm run test:staging-evidence
+      - name: Phases 20-22 offline staging and pilot release-gate tests
+        run: npm run test:release-gates
       - name: Lint
         run: npm run lint
       - name: Build
